@@ -1,0 +1,3 @@
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">REQUEST COULD NOT BE COMPLETED</p><h1>Please check your request</h1><p role="alert">${empty error ? 'The requested page is unavailable or the operation could not be completed.' : error}</p><p>Return to the appropriate page and try again.</p><div class="actions"><a class="button" href="${pageContext.request.contextPath}/dashboard">Dashboard</a><a href="${pageContext.request.contextPath}/login">Customer login</a><a href="${pageContext.request.contextPath}/admin">Administrator login</a></div></section>
+<%@ include file="footer.jspf" %>

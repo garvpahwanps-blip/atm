@@ -1,0 +1,7 @@
+<%@ page import="java.util.List,java.util.Map" %>
+<div class="table-scroll"><table><thead><tr><th>Time (UTC)</th><th>Type</th><th>Amount</th><th>Counterparty</th><th>Reference</th><th>Balance after</th><th>Notes</th></tr></thead><tbody>
+<% List<Map<String,String>> rows = (List<Map<String,String>>) request.getAttribute("transactions");
+   if (rows == null || rows.isEmpty()) { %><tr><td colspan="7">No transactions yet.</td></tr><% }
+   else for (Map<String,String> row : rows) { %>
+<tr><td><%= row.get("time") %></td><td><%= row.get("type") %></td><td><%= row.get("amount") %></td><td><%= row.get("counterparty") %></td><td class="reference"><%= row.get("reference") %></td><td><%= row.get("balance") %></td><td><%= row.get("notes") %></td></tr>
+<% } %></tbody></table></div>

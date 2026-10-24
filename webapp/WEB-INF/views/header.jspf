@@ -1,0 +1,5 @@
+<%@ page contentType="text/html; charset=UTF-8" %>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Secure ATM · Banking</title><link rel="stylesheet" href="${pageContext.request.contextPath}/assets/style.css"></head><body>
+<header><a class="brand" href="${pageContext.request.contextPath}/">SECURE ATM<span>Banking management</span></a><nav><a href="${pageContext.request.contextPath}/dashboard">Dashboard</a><a href="${pageContext.request.contextPath}/deposit">Deposit</a><a href="${pageContext.request.contextPath}/withdraw">Withdraw</a><a href="${pageContext.request.contextPath}/transfer">Transfer</a><a href="${pageContext.request.contextPath}/statement">Statement</a><a href="${pageContext.request.contextPath}/change-pin">Change PIN</a>
+<% if (session.getAttribute("userId") != null) { %><form method="post" action="${context}/logout"><input type="hidden" name="csrf" value="${csrf}"><button class="link" type="submit">Logout</button></form><% } %></nav></header>
+<main><p class="notice" role="status">${message}</p>

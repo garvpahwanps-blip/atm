@@ -1,0 +1,2201 @@
+SECURE ATM AND BANKING MANAGEMENT SYSTEM
+Complete written contents of every project source, view, configuration template, test, script, and documentation file.
+The individual runnable files are also included in this same project folder, using their required package directories.
+The manually supplied Connector/J JAR is included under lib/ as a binary library.
+
+FILE INDEX
+.gitignore
+README.md
+database/schema.sql
+lib/README.md
+resources/database.properties.example
+scripts/build.sh
+scripts/run-admin.sh
+scripts/test.sh
+src/com/atm/dao/AccountDAO.java
+src/com/atm/dao/Database.java
+src/com/atm/dao/TransactionDAO.java
+src/com/atm/dao/UserDAO.java
+src/com/atm/desktop/AdminDashboard.java
+src/com/atm/desktop/ClockThread.java
+src/com/atm/desktop/SessionMonitorThread.java
+src/com/atm/filter/AuthenticationFilter.java
+src/com/atm/model/Account.java
+src/com/atm/model/BankTransaction.java
+src/com/atm/model/CustomerSummary.java
+src/com/atm/model/TransactionType.java
+src/com/atm/model/User.java
+src/com/atm/security/AdminAuthenticator.java
+src/com/atm/security/AdminPasswordTool.java
+src/com/atm/security/PasswordHasher.java
+src/com/atm/service/AccountLockedException.java
+src/com/atm/service/AuthenticationException.java
+src/com/atm/service/BankingException.java
+src/com/atm/service/BankingService.java
+src/com/atm/service/InsufficientBalanceException.java
+src/com/atm/service/Validation.java
+src/com/atm/servlet/AdminServlet.java
+src/com/atm/servlet/ChangePinServlet.java
+src/com/atm/servlet/DashboardServlet.java
+src/com/atm/servlet/DepositServlet.java
+src/com/atm/servlet/LoginServlet.java
+src/com/atm/servlet/LogoutServlet.java
+src/com/atm/servlet/RegistrationServlet.java
+src/com/atm/servlet/StatementServlet.java
+src/com/atm/servlet/TransferServlet.java
+src/com/atm/servlet/Web.java
+src/com/atm/servlet/WithdrawServlet.java
+tests/com/atm/tests/BankingIntegrationTest.java
+tests/com/atm/tests/DesktopSmokeTest.java
+tests/com/atm/tests/SecurityTest.java
+tests/com/atm/tests/ThreadTest.java
+tests/com/atm/tests/WebSmokeTest.java
+webapp/META-INF/context.xml
+webapp/WEB-INF/views/admin.jsp
+webapp/WEB-INF/views/change-pin.jsp
+webapp/WEB-INF/views/dashboard.jsp
+webapp/WEB-INF/views/deposit.jsp
+webapp/WEB-INF/views/error.jsp
+webapp/WEB-INF/views/footer.jspf
+webapp/WEB-INF/views/header.jspf
+webapp/WEB-INF/views/login.jsp
+webapp/WEB-INF/views/register.jsp
+webapp/WEB-INF/views/statement.jsp
+webapp/WEB-INF/views/transactions.jspf
+webapp/WEB-INF/views/transfer.jsp
+webapp/WEB-INF/views/withdraw.jsp
+webapp/WEB-INF/web.xml
+webapp/assets/style.css
+webapp/index.jsp
+
+
+================================================================================
+FILE: .gitignore
+================================================================================
+
+build/
+lib/*.jar
+resources/database.properties
+*.log
+.idea/
+*.iml
+.DS_Store
+
+================================================================================
+FILE: README.md
+================================================================================
+
+# Secure ATM and Banking Management System
+
+Java 21, MySQL 8.0.16+ (8.4 recommended), Tomcat 10.1, Jakarta Servlet/JSP, and Swing/AWT.
+No Maven, Gradle, frameworks, REST APIs, JSTL, or JUnit. The web and desktop interfaces
+share the same model, JDBC DAOs, banking service, and security implementation.
+
+## Final layout
+
+```
+src/com/atm/
+  model/       User, Account, CustomerSummary, BankTransaction, TransactionType
+  dao/         Database, UserDAO, AccountDAO, TransactionDAO
+  service/     BankingService, Validation, BankingException,
+               InsufficientBalanceException, AccountLockedException, AuthenticationException
+  security/    PasswordHasher, AdminPasswordTool, AdminAuthenticator
+  servlet/     Web, RegistrationServlet, LoginServlet, DashboardServlet,
+               DepositServlet, WithdrawServlet, TransferServlet, StatementServlet,
+               ChangePinServlet, LogoutServlet, AdminServlet
+  filter/      AuthenticationFilter
+  desktop/     AdminDashboard, ClockThread, SessionMonitorThread
+webapp/
+  index.jsp
+  assets/style.css
+  WEB-INF/web.xml
+  WEB-INF/views/  register.jsp, login.jsp, dashboard.jsp, deposit.jsp,
+                 withdraw.jsp, transfer.jsp, statement.jsp, change-pin.jsp,
+                 admin.jsp, error.jsp, header.jspf, footer.jspf, transactions.jspf
+  META-INF/context.xml               # SameSite session cookies
+database/schema.sql
+resources/database.properties.example
+lib/README.md                         # manually add Connector/J here
+scripts/                              # javac, jar, tests, desktop launcher
+tests/com/atm/tests/                   # main()-based tests, no JUnit
+```
+
+JSP views live under WEB-INF so direct requests cannot bypass controllers. Database
+configuration and passwords are never included in the WAR or committed to Git.
+
+## 1. IntelliJ and manual libraries
+
+1. Install a JDK **21**, MySQL **8.4**, and Apache Tomcat **10.1** binary distribution
+   from their official sites. Verify downloaded archives using publisher checksums.
+   Use `java -version` and `javac -version`; a JRE alone is insufficient.
+2. Open this directory in IntelliJ as a plain Java project. In **File > Project
+   Structure > Project**, select JDK 21 and language level 21. Mark `src` as Sources
+   and `tests` as Test Sources. Do not mark `resources` as a deployment resource root.
+3. Download MySQL Connector/J **9.4.0** from MySQL's official Connector/J downloads,
+   or download the official artifact at
+   `https://repo.maven.apache.org/maven2/com/mysql/mysql-connector-j/9.4.0/mysql-connector-j-9.4.0.jar`.
+   This is a manual JAR download, not use of Maven. Put the JAR in `lib/`.
+4. In **Project Structure > Modules > Dependencies > + > JARs or directories**, add
+   that JAR and `TOMCAT_HOME/lib/servlet-api.jar`. Use **Provided** scope for the
+   Servlet API. Tomcat supplies Jakarta Servlet 6; `javax.servlet.*` is incompatible.
+5. Set `JAVA_HOME` to your JDK 21 and `TOMCAT_HOME` to the extracted Tomcat directory.
+   On Linux/macOS add `$JAVA_HOME/bin` to PATH. The scripts use Bash; on Windows use
+   Git Bash, or the equivalent `javac`/`jar` commands with `;` classpath separators.
+
+## 2. MySQL and local configuration
+
+Run `mysql -u root -p < database/schema.sql`. In an administrator MySQL shell,
+create a local application login, choosing your own strong password:
+
+```sql
+CREATE USER 'atm_app'@'127.0.0.1' IDENTIFIED BY '<choose a strong password>';
+GRANT SELECT, INSERT, UPDATE ON secure_atm.* TO 'atm_app'@'127.0.0.1';
+```
+
+Use the appropriate host for your installation (MySQL may match localhost instead).
+The application user needs no schema administration or DELETE permission.
+Copy `resources/database.properties.example` to `resources/database.properties`.
+Set `db.user`, `db.password`, and the JDBC host/port. `chmod 600` the local file on
+Unix. Do not commit it. The example's TLS-disabled URL is for loopback development
+only; remote databases must use `sslMode=VERIFY_IDENTITY` with trusted certificates,
+and `allowPublicKeyRetrieval` should be removed. All database timestamps use UTC.
+
+## 3. Build and set the administrator password
+
+```sh
+export JAVA_HOME=/path/to/jdk-21
+export PATH="$JAVA_HOME/bin:$PATH"
+export TOMCAT_HOME=/path/to/apache-tomcat-10.1.x
+bash scripts/build.sh
+java -cp build/classes com.atm.security.AdminPasswordTool
+```
+
+The password tool prompts on a real console without echo and emits a PBKDF2 hash
+(never the password). Put its output in the local `admin.passwordHash` property.
+The administrator login name is `admin`. Use a long, unique password of at least
+12 characters. Missing admin configuration disables admin access. Both interfaces
+apply an administrator login throttle and idle expiry; web administration also
+requires authentication and CSRF tokens.
+
+## 4. Deploy to Tomcat
+
+```sh
+export CATALINA_OPTS="-Datm.config=$PWD/resources/database.properties"
+cp build/atm.war "$TOMCAT_HOME/webapps/atm.war"
+"$TOMCAT_HOME/bin/catalina.sh" run
+```
+
+Set the absolute `-Datm.config=...` JVM option in IntelliJ's Tomcat run configuration,
+or in a private Tomcat `bin/setenv.sh` for background startup. Do not put credentials
+in command arguments. IntelliJ Ultimate can deploy `build/atm.war` under context
+`/atm`; Community Edition can use the external Tomcat commands above.
+Open the local Tomcat `/atm/` context in your own development environment. Register
+a customer, record the generated 12-digit number, log in, deposit, withdraw,
+transfer to a second registered customer, and inspect the last ten transactions.
+Enable HTTPS and secure cookies before any nonlocal deployment. Do not expose this
+development Tomcat or MySQL publicly. Logout uses POST and invalidates the session.
+
+## 5. Swing administrator
+
+```sh
+bash scripts/run-admin.sh
+```
+
+The launcher reads the same local properties and shared classes as Tomcat. Sign in
+as admin. Search by full account number, select a customer, inspect history, and
+unlock accounts. Refresh and unlock beep after success. Desktop access requires
+a graphical display. Clock and inactivity threads update Swing using the EDT and
+are interrupted and joined when the frame closes. Idle expiry returns to login.
+
+## 6. Verification, module by module
+
+1. **Shared security/models:** `bash scripts/test.sh unit` verifies hashing, salt
+   uniqueness, invalid PINs/money/names, tampered hashes, and thread shutdown.
+2. **JDBC/service:** initialize MySQL, then `bash scripts/test.sh integration`.
+   This creates uniquely named test customers in the selected database and leaves
+   them for audit. Prefer a dedicated test database configured with
+   `ATM_CONFIG=/absolute/path/to/test-database.properties`. Checks cover registration,
+   login/lock/unlock, PIN change, deposits, overdrafts, paired transfer entries,
+   rollback, and concurrent withdrawal/transfer consistency.
+3. **Web:** build/deploy the WAR, then `bash scripts/test.sh web` while Tomcat runs.
+   `ATM_BASE_URL` defaults to `http://127.0.0.1:8080/atm`. The Java HTTP test checks
+   protected routes, registration, login, session fixation protection, CSRF,
+   deposit, withdrawal, transfer, mini statement, PIN changes, and logout.
+4. **Desktop:** `bash scripts/test.sh desktop` opens and closes the actual Swing
+   frame and tests session expiry; requires a display (or `xvfb-run` on Linux).
+   Also manually verify table selection, history, clock updates, unlock, and beep.
+
+`scripts/build.sh` compiles every source with `javac --release 21`, compiles manual
+tests, and packages `build/atm.war` with only shared classes and Connector/J. Test
+classes and local configuration are excluded. Rebuild and redeploy after edits.
+No application source or credentials are generated during environment startup.
+
+## Banking and security behavior
+
+All money uses BigDecimal and decimal SQL columns. Amounts must be positive with
+at most two fractional digits and a maximum of 1,000,000,000 per operation. Accounts
+start at zero. Registration, authentication state, deposits, withdrawals, PIN
+changes, unlocks, and transfers use database transactions. Transfers lock account
+rows in ascending ID order with SELECT FOR UPDATE and commit both ledger entries
+and balances together. Every ledger row has a unique UUID reference; a transfer's
+two references share a UUID and use `-D`/`-C` suffixes for reconciliation.
+
+PINs use PBKDF2WithHmacSHA256, 600,000 iterations, a random 16-byte salt and
+constant-time comparison; the versioned hash field includes the salt and cost.
+Three wrong PIN attempts lock the account, including wrong current PIN attempts
+during PIN changes. Admin unlock resets the counter. Locked customers cannot
+perform authenticated operations; inbound transfers can still be received.
+SecureRandom generates 12-digit account numbers; a database unique constraint and
+bounded retries handle collisions. Session IDs rotate on login; mutation endpoints
+require POST and a session CSRF token. JSP output is HTML-escaped in view models.
+Session cookies are HttpOnly, cookie-only sessions expire after 10 idle minutes,
+and responses prohibit caching and embedding. Database errors are logged on the
+server and return generic messages to users.
+
+This implements the requested educational banking workflow. Deposits are simulated
+cash credits; real settlement, regulatory controls, distributed admin throttling,
+and production operational controls require separate product design.
+
+## Prepared cloud workspace
+
+In the prepared cloud machine, run `source /workspace/.atm-state/env.sh` to activate
+the installed JDK 21 and Tomcat paths. Start or restore the local MySQL and Tomcat
+services with `bash /workspace/.atm-state/start-services.sh`. MySQL data is stored
+under `/workspace/.atm-state/mysql` and survives container recreation. No passwords
+are included in source or artifacts. The generated development admin password is
+kept in `/workspace/.atm-state/admin-password.txt` with owner-only permissions;
+replace it using AdminPasswordTool when desired. The login name is `admin`.
+
+The cloud validation uses a virtual display for desktop tests:
+`DISPLAY=:99 ATM_TEST_ADMIN_PASSWORD_FILE=/workspace/.atm-state/admin-password.txt bash scripts/test.sh desktop`.
+Authenticated web admin tests use the same password-file variable. Customer test
+data is deliberately retained in the development database. Publishing the environment
+and validating a newly restored task are separate platform steps.
+
+================================================================================
+FILE: database/schema.sql
+================================================================================
+
+-- MySQL 8.0.16+ / 8.4. Run as a database administrator, then grant the
+-- application user SELECT, INSERT, UPDATE on secure_atm.* (no DDL or DELETE).
+CREATE DATABASE IF NOT EXISTS secure_atm CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE secure_atm;
+
+CREATE TABLE IF NOT EXISTS users (
+    user_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    full_name VARCHAR(100) NOT NULL,
+    account_number CHAR(12) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    pin_hash VARCHAR(255) CHARACTER SET ascii NOT NULL,
+    failed_attempts INT NOT NULL DEFAULT 0,
+    locked BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT uq_users_account_number UNIQUE (account_number),
+    CONSTRAINT ck_account_number CHECK (account_number REGEXP '^[0-9]{12}$'),
+    CONSTRAINT ck_failed_attempts CHECK (failed_attempts BETWEEN 0 AND 3)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS accounts (
+    account_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    balance DECIMAL(19,2) NOT NULL DEFAULT 0.00,
+    account_type VARCHAR(20) NOT NULL DEFAULT 'SAVINGS',
+    CONSTRAINT uq_accounts_user UNIQUE (user_id),
+    CONSTRAINT fk_accounts_user FOREIGN KEY (user_id) REFERENCES users(user_id),
+    CONSTRAINT ck_balance CHECK (balance >= 0),
+    CONSTRAINT ck_account_type CHECK (account_type IN ('SAVINGS'))
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS bank_transactions (
+    transaction_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    account_id BIGINT NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    amount DECIMAL(19,2) NOT NULL,
+    counterparty_account_number CHAR(12) CHARACTER SET ascii NULL,
+    reference_number VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    balance_after DECIMAL(19,2) NOT NULL,
+    notes VARCHAR(255) NOT NULL DEFAULT '',
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT fk_transactions_account FOREIGN KEY (account_id) REFERENCES accounts(account_id),
+    CONSTRAINT uq_transaction_reference UNIQUE (reference_number),
+    CONSTRAINT ck_transaction_type CHECK (type IN ('DEPOSIT','WITHDRAWAL','TRANSFER_OUT','TRANSFER_IN')),
+    CONSTRAINT ck_transaction_amount CHECK (amount > 0),
+    CONSTRAINT ck_transaction_balance CHECK (balance_after >= 0),
+    INDEX ix_transactions_recent (account_id, created_at DESC, transaction_id DESC)
+) ENGINE=InnoDB;
+
+================================================================================
+FILE: lib/README.md
+================================================================================
+
+Place the manually downloaded, unmodified MySQL Connector/J JAR here, e.g.
+`mysql-connector-j-9.4.0.jar`. JARs are ignored by Git. No Maven or Gradle is used.
+The Servlet/JSP APIs come from Tomcat 10.1; never bundle servlet-api.jar in the WAR.
+
+================================================================================
+FILE: resources/database.properties.example
+================================================================================
+
+# Copy to database.properties outside the deployed WAR and restrict permissions.
+# Local-only MySQL. For remote MySQL, use sslMode=VERIFY_IDENTITY and a trusted server certificate.
+db.url=jdbc:mysql://127.0.0.1:3306/secure_atm?sslMode=DISABLED&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&connectTimeout=5000&socketTimeout=10000
+db.user=atm_app
+db.password=
+# Generate with com.atm.security.AdminPasswordTool. No default admin password.
+admin.passwordHash=
+admin.sessionMinutes=10
+
+================================================================================
+FILE: scripts/build.sh
+================================================================================
+
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+: "${JAVA_HOME:?Set JAVA_HOME to a JDK 21 directory}"
+: "${TOMCAT_HOME:?Set TOMCAT_HOME to a Tomcat 10.1 directory}"
+test -f "$TOMCAT_HOME/lib/servlet-api.jar"
+compgen -G 'lib/mysql-connector-j-*.jar' >/dev/null || { echo 'Add Connector/J manually to lib/' >&2; exit 1; }
+mkdir -p build
+rm -rf build/classes build/test-classes build/war
+mkdir -p build/classes build/test-classes build/war/WEB-INF/classes build/war/WEB-INF/lib
+find src -name '*.java' | sort > build/sources.txt
+"$JAVA_HOME/bin/javac" --release 21 -encoding UTF-8 -cp "$TOMCAT_HOME/lib/servlet-api.jar:lib/*" -d build/classes @build/sources.txt
+find tests -name '*.java' | sort > build/test-sources.txt
+"$JAVA_HOME/bin/javac" --release 21 -encoding UTF-8 -cp "build/classes:$TOMCAT_HOME/lib/servlet-api.jar:lib/*" -d build/test-classes @build/test-sources.txt
+cp -R webapp/. build/war/
+cp -R build/classes/com build/war/WEB-INF/classes/
+cp lib/mysql-connector-j-*.jar build/war/WEB-INF/lib/
+"$JAVA_HOME/bin/jar" --create --file build/atm.war -C build/war .
+echo 'Built build/atm.war (Java 21, Jakarta Servlet 6)'
+
+================================================================================
+FILE: scripts/run-admin.sh
+================================================================================
+
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+: "${JAVA_HOME:?Set JAVA_HOME}"
+exec "$JAVA_HOME/bin/java" "-Datm.config=${ATM_CONFIG:-$PWD/resources/database.properties}" -cp 'build/classes:lib/*' com.atm.desktop.AdminDashboard
+
+================================================================================
+FILE: scripts/test.sh
+================================================================================
+
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+: "${JAVA_HOME:?Set JAVA_HOME}"
+classpath="build/classes:build/test-classes:lib/*"
+case "${1:-unit}" in
+  unit) "$JAVA_HOME/bin/java" -cp "$classpath" com.atm.tests.SecurityTest
+        "$JAVA_HOME/bin/java" -cp "$classpath" com.atm.tests.ThreadTest ;;
+  integration) "$JAVA_HOME/bin/java" -cp "$classpath" com.atm.tests.BankingIntegrationTest ;;
+  web) "$JAVA_HOME/bin/java" -cp "$classpath" com.atm.tests.WebSmokeTest ;;
+  desktop) "$JAVA_HOME/bin/java" -cp "$classpath" com.atm.tests.DesktopSmokeTest ;;
+  *) echo 'Usage: scripts/test.sh unit|integration|web|desktop' >&2; exit 2 ;;
+esac
+
+================================================================================
+FILE: src/com/atm/dao/AccountDAO.java
+================================================================================
+
+package com.atm.dao;
+
+import com.atm.model.Account;
+import com.atm.model.CustomerSummary;
+import java.math.BigDecimal;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class AccountDAO {
+    private static final String SUMMARY = "SELECT u.user_id,u.full_name,u.account_number,u.locked,u.failed_attempts,a.account_id,a.balance FROM users u JOIN accounts a ON a.user_id=u.user_id";
+    public void insert(Connection c, long userId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO accounts(user_id,balance,account_type) VALUES(?,0.00,'SAVINGS')")) {
+            ps.setLong(1, userId); ps.executeUpdate();
+        }
+    }
+    public Account findByUser(Connection c, long userId, boolean lock) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT * FROM accounts WHERE user_id=?" + (lock ? " FOR UPDATE" : ""))) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? account(rs) : null; }
+        }
+    }
+    public Account lockById(Connection c, long accountId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT * FROM accounts WHERE account_id=? FOR UPDATE")) {
+            ps.setLong(1, accountId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new SQLException("Account missing");
+                return account(rs);
+            }
+        }
+    }
+    private Account account(ResultSet rs) throws SQLException {
+        return new Account(rs.getLong("account_id"), rs.getLong("user_id"), rs.getBigDecimal("balance"), rs.getString("account_type"));
+    }
+    public void balance(Connection c, long accountId, BigDecimal balance) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("UPDATE accounts SET balance=? WHERE account_id=?")) {
+            ps.setBigDecimal(1, balance); ps.setLong(2, accountId);
+            if (ps.executeUpdate() != 1) throw new SQLException("Account missing");
+        }
+    }
+    public CustomerSummary summary(Connection c, long userId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(SUMMARY + " WHERE u.user_id=?")) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? summary(rs) : null; }
+        }
+    }
+    public List<CustomerSummary> search(Connection c, String number) throws SQLException {
+        List<CustomerSummary> result = new ArrayList<>();
+        try (PreparedStatement ps = c.prepareStatement(SUMMARY + (number == null ? " ORDER BY u.user_id" : " WHERE u.account_number=?"))) {
+            if (number != null) ps.setString(1, number);
+            try (ResultSet rs = ps.executeQuery()) { while (rs.next()) result.add(summary(rs)); }
+        }
+        return List.copyOf(result);
+    }
+    private CustomerSummary summary(ResultSet rs) throws SQLException {
+        return new CustomerSummary(rs.getLong("user_id"), rs.getLong("account_id"), rs.getString("full_name"),
+            rs.getString("account_number"), rs.getBigDecimal("balance"), rs.getBoolean("locked"), rs.getInt("failed_attempts"));
+    }
+}
+
+================================================================================
+FILE: src/com/atm/dao/Database.java
+================================================================================
+
+package com.atm.dao;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Properties;
+
+public final class Database {
+    @FunctionalInterface
+    public interface ConnectionFactory { Connection open() throws SQLException; }
+    private Database() {}
+
+    public static Properties configuration() {
+        String location = System.getProperty("atm.config");
+        if (location == null || location.isBlank()) location = System.getenv("ATM_CONFIG");
+        if (location == null || location.isBlank()) location = "resources/database.properties";
+        Properties properties = new Properties();
+        try (InputStream input = Files.newInputStream(Path.of(location))) { properties.load(input); }
+        catch (IOException e) { throw new IllegalStateException("Cannot read local database configuration. Set -Datm.config to its absolute path.", e); }
+        return properties;
+    }
+
+    public static Connection open() throws SQLException {
+        // Tomcat's common class loader cannot discover drivers inside WEB-INF/lib.
+        try { Class.forName("com.mysql.cj.jdbc.Driver"); }
+        catch (ClassNotFoundException e) { throw new SQLException("Add the MySQL Connector/J JAR to lib and rebuild.", e); }
+        Properties p = configuration();
+        String url = p.getProperty("db.url", "");
+        if (!url.startsWith("jdbc:mysql:")) throw new SQLException("A MySQL JDBC URL is required.");
+        Connection connection = DriverManager.getConnection(url, p.getProperty("db.user", ""), p.getProperty("db.password", ""));
+        connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+        return connection;
+    }
+}
+
+================================================================================
+FILE: src/com/atm/dao/TransactionDAO.java
+================================================================================
+
+package com.atm.dao;
+
+import com.atm.model.*;
+import java.math.BigDecimal;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class TransactionDAO {
+    public void insert(Connection c, long accountId, TransactionType type, BigDecimal amount,
+                       String counterparty, String reference, BigDecimal balance, String notes) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO bank_transactions(account_id,type,amount,counterparty_account_number,reference_number,balance_after,notes) VALUES(?,?,?,?,?,?,?)")) {
+            ps.setLong(1, accountId); ps.setString(2, type.name()); ps.setBigDecimal(3, amount);
+            ps.setString(4, counterparty); ps.setString(5, reference); ps.setBigDecimal(6, balance); ps.setString(7, notes);
+            ps.executeUpdate();
+        }
+    }
+    public List<BankTransaction> history(Connection c, long accountId, int limit) throws SQLException {
+        List<BankTransaction> result = new ArrayList<>();
+        String sql = "SELECT * FROM bank_transactions WHERE account_id=? ORDER BY created_at DESC,transaction_id DESC";
+        // A zero limit denotes complete administrator history; customer statements use 10.
+        try (PreparedStatement ps = c.prepareStatement(sql + (limit > 0 ? " LIMIT ?" : ""))) {
+            ps.setLong(1, accountId); if (limit > 0) ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) result.add(new BankTransaction(rs.getLong("transaction_id"), accountId,
+                    TransactionType.valueOf(rs.getString("type")), rs.getBigDecimal("amount"),
+                    rs.getString("counterparty_account_number"), rs.getString("reference_number"),
+                    rs.getBigDecimal("balance_after"), rs.getString("notes"), rs.getTimestamp("created_at").toInstant()));
+            }
+        }
+        return List.copyOf(result);
+    }
+}
+
+================================================================================
+FILE: src/com/atm/dao/UserDAO.java
+================================================================================
+
+package com.atm.dao;
+
+import com.atm.model.User;
+import java.sql.*;
+
+public final class UserDAO {
+    public User findByNumber(Connection c, String number, boolean forUpdate) throws SQLException {
+        return find(c, "SELECT * FROM users WHERE account_number=?" + (forUpdate ? " FOR UPDATE" : ""), number);
+    }
+    public User findById(Connection c, long id, boolean forUpdate) throws SQLException {
+        return find(c, "SELECT * FROM users WHERE user_id=?" + (forUpdate ? " FOR UPDATE" : ""), id);
+    }
+    private User find(Connection c, String sql, Object key) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            if (key instanceof Long id) ps.setLong(1, id); else ps.setString(1, (String) key);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? new User(rs.getLong("user_id"), rs.getString("full_name"),
+                    rs.getString("account_number"), rs.getString("pin_hash"), rs.getInt("failed_attempts"),
+                    rs.getBoolean("locked"), rs.getTimestamp("created_at").toInstant()) : null;
+            }
+        }
+    }
+    public long insert(Connection c, String name, String number, String hash) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO users(full_name,account_number,pin_hash) VALUES(?,?,?)", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, name); ps.setString(2, number); ps.setString(3, hash);
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (!rs.next()) throw new SQLException("No generated user ID");
+                return rs.getLong(1);
+            }
+        }
+    }
+    public void attempts(Connection c, long id, int attempts, boolean locked) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("UPDATE users SET failed_attempts=?,locked=? WHERE user_id=?")) {
+            ps.setInt(1, attempts); ps.setBoolean(2, locked); ps.setLong(3, id);
+            if (ps.executeUpdate() != 1) throw new SQLException("User missing");
+        }
+    }
+    public void changePin(Connection c, long id, String hash) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("UPDATE users SET pin_hash=?,failed_attempts=0 WHERE user_id=?")) {
+            ps.setString(1, hash); ps.setLong(2, id);
+            if (ps.executeUpdate() != 1) throw new SQLException("User missing");
+        }
+    }
+}
+
+================================================================================
+FILE: src/com/atm/desktop/AdminDashboard.java
+================================================================================
+
+package com.atm.desktop;
+
+import com.atm.model.*;
+import com.atm.security.AdminAuthenticator;
+import com.atm.service.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+
+public final class AdminDashboard extends JFrame {
+    private final BankingService bank = new BankingService();
+    private final CardLayout cards = new CardLayout();
+    private final JPanel content = new JPanel(cards);
+    private final JLabel clock = new JLabel();
+    private final JLabel status = new JLabel("Sign in to administer customer accounts.");
+    private final JTextField username = new JTextField("admin", 18);
+    private final JPasswordField password = new JPasswordField(18);
+    private final JTextField search = new JTextField(16);
+    private final DefaultTableModel customerModel = tableModel("Name", "Account number", "Balance", "Status", "Failed attempts");
+    private final DefaultTableModel historyModel = tableModel("UTC timestamp", "Type", "Amount", "Counterparty", "Reference", "Balance after", "Notes");
+    private final JTable customerTable = new JTable(customerModel);
+    private final JTable historyTable = new JTable(historyModel);
+    private List<CustomerSummary> customers = List.of();
+    private final ClockThread clockThread;
+    private final SessionMonitorThread sessionThread;
+    private final AWTEventListener activityListener;
+    private boolean authenticated;
+    private boolean closed;
+    private long sessionEpoch;
+
+    public AdminDashboard() { this(Duration.ofMinutes(AdminAuthenticator.sessionMinutes())); }
+    public AdminDashboard(Duration idleTimeout) {
+        super("Secure ATM — Administrator");
+        if (!SwingUtilities.isEventDispatchThread()) throw new IllegalStateException("Construct the dashboard on the EDT");
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setSize(1180, 760); setLocationRelativeTo(null); setLayout(new BorderLayout(12, 12));
+        JPanel top = new JPanel(new BorderLayout());
+        top.setBorder(BorderFactory.createEmptyBorder(18, 20, 10, 20));
+        top.add(new JLabel("SECURE ATM  |  Administration"), BorderLayout.WEST); top.add(clock, BorderLayout.EAST);
+        add(top, BorderLayout.NORTH); add(content, BorderLayout.CENTER);
+        status.setBorder(BorderFactory.createEmptyBorder(10, 20, 14, 20)); add(status, BorderLayout.SOUTH);
+        content.add(loginPanel(), "login"); content.add(dashboardPanel(), "dashboard"); cards.show(content, "login");
+        clockThread = new ClockThread(clock::setText);
+        sessionThread = new SessionMonitorThread(idleTimeout, () -> logout("Session expired due to inactivity. Please sign in again."));
+        activityListener = event -> {
+            if (event.getSource() instanceof Component component &&
+                SwingUtilities.getWindowAncestor(component) == this) sessionThread.touch();
+        };
+        Toolkit.getDefaultToolkit().addAWTEventListener(activityListener,
+            AWTEvent.KEY_EVENT_MASK | AWTEvent.MOUSE_EVENT_MASK | AWTEvent.MOUSE_MOTION_EVENT_MASK);
+        addWindowListener(new WindowAdapter() { @Override public void windowClosed(WindowEvent e) { stopThreads(); } });
+        clockThread.start(); sessionThread.start();
+    }
+    private static DefaultTableModel tableModel(String... headings) {
+        return new DefaultTableModel(headings, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+    }
+    private JPanel loginPanel() {
+        JPanel outer = new JPanel(new GridBagLayout()); JPanel form = new JPanel(new GridBagLayout());
+        GridBagConstraints g = new GridBagConstraints(); g.insets = new Insets(10, 10, 10, 10); g.fill = GridBagConstraints.HORIZONTAL;
+        g.gridx = 0; g.gridy = 0; g.gridwidth = 2; form.add(new JLabel("Administrator sign in"), g);
+        g.gridwidth = 1; g.gridy++; form.add(new JLabel("Username"), g); g.gridx = 1; form.add(username, g);
+        g.gridx = 0; g.gridy++; form.add(new JLabel("Password"), g); g.gridx = 1; form.add(password, g);
+        JButton login = new JButton("Sign in"); login.addActionListener(e -> authenticate());
+        password.addActionListener(e -> authenticate());
+        g.gridx = 1; g.gridy++; form.add(login, g); outer.add(form); return outer;
+    }
+    private JPanel dashboardPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10)); panel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        actions.add(new JLabel("Account number:")); actions.add(search);
+        JButton find = new JButton("Search"); find.addActionListener(e -> loadCustomers()); actions.add(find);
+        JButton refresh = new JButton("All customers"); refresh.addActionListener(e -> { search.setText(""); loadCustomers(); }); actions.add(refresh);
+        JButton history = new JButton("View history"); history.addActionListener(e -> loadHistory()); actions.add(history);
+        JButton unlock = new JButton("Unlock account"); unlock.addActionListener(e -> unlockSelected()); actions.add(unlock);
+        JButton logout = new JButton("Logout"); logout.addActionListener(e -> logout("Signed out.")); actions.add(logout);
+        search.addActionListener(e -> loadCustomers());
+        customerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION); customerTable.setAutoCreateRowSorter(true);
+        // Render customer-controlled notes as plain text, never Swing HTML.
+        DefaultTableCellRenderer plainText = new DefaultTableCellRenderer();
+        plainText.putClientProperty("html.disable", Boolean.TRUE);
+        customerTable.setDefaultRenderer(Object.class, plainText);
+        historyTable.setDefaultRenderer(Object.class, plainText);
+        customerTable.getSelectionModel().addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) historyModel.setRowCount(0); });
+        historyTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        for (int i = 0; i < historyTable.getColumnCount(); i++) historyTable.getColumnModel().getColumn(i).setPreferredWidth(i == 4 ? 290 : 160);
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, new JScrollPane(customerTable), new JScrollPane(historyTable));
+        split.setResizeWeight(.55); panel.add(actions, BorderLayout.NORTH); panel.add(split, BorderLayout.CENTER); return panel;
+    }
+    private void authenticate() {
+        char[] entered = password.getPassword(); password.setText(""); String name = username.getText();
+        runTask(() -> {
+            try { return AdminAuthenticator.authenticate(name, entered); }
+            finally { Arrays.fill(entered, '\0'); }
+        }, ok -> {
+            if (!ok) { status.setText("Login failed or temporarily throttled."); return; }
+            authenticated = true; sessionEpoch++; sessionThread.setActive(true); cards.show(content, "dashboard");
+            Toolkit.getDefaultToolkit().beep(); loadCustomers();
+        });
+    }
+    private void loadCustomers() {
+        if (!authenticated) return;
+        String number = search.getText().strip();
+        runTask(() -> bank.customers(number), result -> {
+            customers = result; customerModel.setRowCount(0); historyModel.setRowCount(0);
+            for (CustomerSummary c : result) customerModel.addRow(new Object[]{c.fullName(), c.accountNumber(), c.balance(), c.locked() ? "Locked" : "Active", c.failedAttempts()});
+            status.setText(result.size() + " customer(s). Select a row to view history or unlock."); Toolkit.getDefaultToolkit().beep();
+        });
+    }
+    private CustomerSummary selected() {
+        int row = customerTable.getSelectedRow();
+        if (row < 0) throw new BankingException("Select a customer first.");
+        return customers.get(customerTable.convertRowIndexToModel(row));
+    }
+    private void loadHistory() {
+        if (!authenticated) return;
+        try {
+            CustomerSummary customer = selected();
+            runTask(() -> bank.adminHistory(customer.accountNumber()), rows -> {
+                historyModel.setRowCount(0);
+                for (BankTransaction t : rows) historyModel.addRow(new Object[]{t.createdAt(), t.type(), t.amount(),
+                    t.counterpartyAccountNumber(), t.referenceNumber(), t.balanceAfter(), t.notes()});
+                status.setText(rows.size() + " transaction(s) for " + customer.accountNumber()); Toolkit.getDefaultToolkit().beep();
+            });
+        } catch (BankingException e) { status.setText(e.getMessage()); }
+    }
+    private void unlockSelected() {
+        if (!authenticated) return;
+        try {
+            CustomerSummary customer = selected();
+            runTask(() -> { bank.unlock(customer.accountNumber()); return customer.accountNumber(); }, number -> {
+                Toolkit.getDefaultToolkit().beep(); loadCustomers(); status.setText("Unlocked " + number);
+            });
+        } catch (BankingException e) { status.setText(e.getMessage()); }
+    }
+    private <T> void runTask(Callable<T> operation, Consumer<T> completed) {
+        long epoch = sessionEpoch; setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        new SwingWorker<T, Void>() {
+            @Override protected T doInBackground() throws Exception { return operation.call(); }
+            @Override protected void done() {
+                if (closed || epoch != sessionEpoch) return;
+                setCursor(Cursor.getDefaultCursor());
+                try { completed.accept(get()); }
+                catch (Exception e) {
+                    Throwable cause = e.getCause() == null ? e : e.getCause();
+                    if (cause instanceof BankingException && cause.getCause() == null) status.setText(cause.getMessage());
+                    else { cause.printStackTrace(); status.setText("Operation failed. Check the database configuration and server log."); }
+                }
+            }
+        }.execute();
+    }
+    private void logout(String message) {
+        authenticated = false; sessionEpoch++; sessionThread.setActive(false);
+        customers = List.of(); customerModel.setRowCount(0); historyModel.setRowCount(0); password.setText("");
+        cards.show(content, "login"); setCursor(Cursor.getDefaultCursor()); status.setText(message);
+    }
+    private void stopThreads() {
+        if (closed) return;
+        closed = true; authenticated = false; sessionEpoch++;
+        Toolkit.getDefaultToolkit().removeAWTEventListener(activityListener);
+        clockThread.shutdown(); sessionThread.shutdown();
+        try { clockThread.join(1000); sessionThread.join(1000); }
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    @Override public void dispose() { stopThreads(); super.dispose(); }
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            try { new AdminDashboard().setVisible(true); }
+            catch (RuntimeException e) { e.printStackTrace(); JOptionPane.showMessageDialog(null, "Cannot start administrator dashboard. Check local configuration."); }
+        });
+    }
+}
+
+================================================================================
+FILE: src/com/atm/desktop/ClockThread.java
+================================================================================
+
+package com.atm.desktop;
+
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.function.Consumer;
+import javax.swing.SwingUtilities;
+
+public final class ClockThread extends Thread {
+    private volatile boolean running = true;
+    private final Consumer<String> display;
+    private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss z");
+    public ClockThread(Consumer<String> display) { super("atm-clock"); this.display = display; setDaemon(true); }
+    @Override public void run() {
+        try {
+            while (running) {
+                String time = FORMAT.format(ZonedDateTime.now());
+                SwingUtilities.invokeLater(() -> { if (running) display.accept(time); });
+                Thread.sleep(1000);
+            }
+        } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        finally { running = false; }
+    }
+    public void shutdown() { running = false; interrupt(); }
+}
+
+================================================================================
+FILE: src/com/atm/desktop/SessionMonitorThread.java
+================================================================================
+
+package com.atm.desktop;
+
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.swing.SwingUtilities;
+
+public final class SessionMonitorThread extends Thread {
+    private volatile boolean running = true;
+    private final AtomicBoolean active = new AtomicBoolean();
+    private final AtomicLong lastActivity = new AtomicLong(System.nanoTime());
+    private final long timeoutNanos;
+    private final Runnable expire;
+    public SessionMonitorThread(Duration timeout, Runnable expire) {
+        super("atm-session-monitor");
+        if (timeout.isNegative() || timeout.isZero()) throw new IllegalArgumentException("Positive timeout required");
+        this.timeoutNanos = timeout.toNanos(); this.expire = expire; setDaemon(true);
+    }
+    public void touch() { lastActivity.set(System.nanoTime()); }
+    public void setActive(boolean value) { touch(); active.set(value); }
+    @Override public void run() {
+        try {
+            while (running) {
+                if (active.get() && System.nanoTime() - lastActivity.get() >= timeoutNanos && active.compareAndSet(true, false))
+                    SwingUtilities.invokeLater(() -> { if (running && !active.get()) expire.run(); });
+                Thread.sleep(50);
+            }
+        } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        finally { running = false; }
+    }
+    public void shutdown() { running = false; interrupt(); }
+}
+
+================================================================================
+FILE: src/com/atm/filter/AuthenticationFilter.java
+================================================================================
+
+package com.atm.filter;
+
+import com.atm.servlet.Web;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebFilter;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Set;
+
+@WebFilter("/*")
+public final class AuthenticationFilter implements Filter {
+    private static final Set<String> PROTECTED = Set.of("/dashboard", "/deposit", "/withdraw", "/transfer", "/statement", "/change-pin", "/logout");
+    @Override public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        HttpServletRequest req = (HttpServletRequest) request;
+        HttpServletResponse resp = (HttpServletResponse) response;
+        req.setCharacterEncoding("UTF-8"); resp.setCharacterEncoding("UTF-8");
+        resp.setHeader("Cache-Control", "no-store");
+        resp.setHeader("X-Content-Type-Options", "nosniff");
+        resp.setHeader("Referrer-Policy", "no-referrer");
+        resp.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+        String path = req.getServletPath();
+        HttpSession session = req.getSession(false);
+        if (PROTECTED.contains(path) && (session == null || !(session.getAttribute("userId") instanceof Long))) {
+            resp.sendRedirect(req.getContextPath() + "/login"); return;
+        }
+        if ("POST".equals(req.getMethod())) {
+            String expected = session == null ? null : (String) session.getAttribute("csrf");
+            String submitted = req.getParameter("csrf");
+            if (expected == null || submitted == null || submitted.length() > 100 ||
+                !MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), submitted.getBytes(StandardCharsets.UTF_8))) {
+                Web.error(req, resp, 403, "Invalid form token. Reload the form and try again."); return;
+            }
+        }
+        chain.doFilter(req, resp);
+    }
+}
+
+================================================================================
+FILE: src/com/atm/model/Account.java
+================================================================================
+
+package com.atm.model;
+
+import java.math.BigDecimal;
+
+public record Account(long id, long userId, BigDecimal balance, String accountType) {}
+
+================================================================================
+FILE: src/com/atm/model/BankTransaction.java
+================================================================================
+
+package com.atm.model;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+public record BankTransaction(long id, long accountId, TransactionType type,
+                              BigDecimal amount, String counterpartyAccountNumber,
+                              String referenceNumber, BigDecimal balanceAfter,
+                              String notes, Instant createdAt) {}
+
+================================================================================
+FILE: src/com/atm/model/CustomerSummary.java
+================================================================================
+
+package com.atm.model;
+
+import java.math.BigDecimal;
+
+/** Safe presentation model without authentication material. */
+public record CustomerSummary(long userId, long accountId, String fullName,
+                              String accountNumber, BigDecimal balance,
+                              boolean locked, int failedAttempts) {}
+
+================================================================================
+FILE: src/com/atm/model/TransactionType.java
+================================================================================
+
+package com.atm.model;
+
+public enum TransactionType { DEPOSIT, WITHDRAWAL, TRANSFER_OUT, TRANSFER_IN }
+
+================================================================================
+FILE: src/com/atm/model/User.java
+================================================================================
+
+package com.atm.model;
+
+import java.time.Instant;
+
+/** Internal persistence model; never store this object in a web session. */
+public record User(long id, String fullName, String accountNumber, String pinHash,
+                   int failedAttempts, boolean locked, Instant createdAt) {}
+
+================================================================================
+FILE: src/com/atm/security/AdminAuthenticator.java
+================================================================================
+
+package com.atm.security;
+
+import com.atm.dao.Database;
+import java.time.Duration;
+
+/** A process-wide throttle for the single configured administrator. */
+public final class AdminAuthenticator {
+    private static int failures;
+    private static long blockedUntil;
+    private AdminAuthenticator() {}
+
+    public static synchronized boolean authenticate(String name, char[] password) {
+        long now = System.nanoTime();
+        if (blockedUntil != 0 && now < blockedUntil) return false;
+        String hash = Database.configuration().getProperty("admin.passwordHash", "");
+        boolean verified = PasswordHasher.verify(password, hash);
+        if ("admin".equals(name) && verified) { failures = 0; blockedUntil = 0; return true; }
+        if (++failures >= 5) { blockedUntil = now + Duration.ofMinutes(1).toNanos(); failures = 0; }
+        return false;
+    }
+
+    public static int sessionMinutes() {
+        try { return Math.max(1, Math.min(60, Integer.parseInt(Database.configuration().getProperty("admin.sessionMinutes", "10")))); }
+        catch (NumberFormatException e) { return 10; }
+    }
+}
+
+================================================================================
+FILE: src/com/atm/security/AdminPasswordTool.java
+================================================================================
+
+package com.atm.security;
+
+import java.io.Console;
+import java.util.Arrays;
+
+public final class AdminPasswordTool {
+    private AdminPasswordTool() {}
+    public static void main(String[] args) {
+        Console console = System.console();
+        if (console == null) throw new IllegalStateException("Run in a real terminal; password input is never echoed.");
+        char[] password = console.readPassword("New administrator password (12+ characters): ");
+        char[] confirmation = console.readPassword("Confirm password: ");
+        try {
+            if (password == null || password.length < 12 || !Arrays.equals(password, confirmation))
+                throw new IllegalArgumentException("Passwords must match and contain at least 12 characters.");
+            console.printf("admin.passwordHash=%s%n", PasswordHasher.hash(password));
+        } finally {
+            if (password != null) Arrays.fill(password, '\0');
+            if (confirmation != null) Arrays.fill(confirmation, '\0');
+        }
+    }
+}
+
+================================================================================
+FILE: src/com/atm/security/PasswordHasher.java
+================================================================================
+
+package com.atm.security;
+
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.Base64;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
+public final class PasswordHasher {
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final int ITERATIONS = 600_000;
+    private PasswordHasher() {}
+
+    public static String hash(char[] password) {
+        byte[] salt = new byte[16];
+        RANDOM.nextBytes(salt);
+        byte[] hash = derive(password, salt, ITERATIONS);
+        try {
+            return "pbkdf2-sha256$" + ITERATIONS + "$" + Base64.getEncoder().encodeToString(salt)
+                + "$" + Base64.getEncoder().encodeToString(hash);
+        } finally { Arrays.fill(hash, (byte) 0); }
+    }
+
+    public static boolean verify(char[] password, String encoded) {
+        if (password == null || encoded == null || encoded.length() > 255) return false;
+        try {
+            String[] parts = encoded.split("\\$", -1);
+            if (parts.length != 4 || !parts[0].equals("pbkdf2-sha256")) return false;
+            int rounds = Integer.parseInt(parts[1]);
+            if (rounds < ITERATIONS || rounds > 2_000_000) return false;
+            byte[] salt = Base64.getDecoder().decode(parts[2]);
+            byte[] expected = Base64.getDecoder().decode(parts[3]);
+            if (salt.length != 16 || expected.length != 32) return false;
+            byte[] actual = derive(password, salt, rounds);
+            try { return MessageDigest.isEqual(actual, expected); }
+            finally { Arrays.fill(actual, (byte) 0); }
+        } catch (IllegalArgumentException e) { return false; }
+    }
+
+    private static byte[] derive(char[] password, byte[] salt, int rounds) {
+        PBEKeySpec spec = new PBEKeySpec(password, salt, rounds, 256);
+        try { return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded(); }
+        catch (GeneralSecurityException e) { throw new IllegalStateException("PBKDF2 is unavailable", e); }
+        finally { spec.clearPassword(); }
+    }
+}
+
+================================================================================
+FILE: src/com/atm/service/AccountLockedException.java
+================================================================================
+
+package com.atm.service;
+
+public class AccountLockedException extends AuthenticationException {
+    public AccountLockedException() { super("Account locked. Contact an administrator to unlock it."); }
+}
+
+================================================================================
+FILE: src/com/atm/service/AuthenticationException.java
+================================================================================
+
+package com.atm.service;
+
+public class AuthenticationException extends BankingException {
+    public AuthenticationException(String message) { super(message); }
+}
+
+================================================================================
+FILE: src/com/atm/service/BankingException.java
+================================================================================
+
+package com.atm.service;
+
+public class BankingException extends RuntimeException {
+    public BankingException(String message) { super(message); }
+    public BankingException(String message, Throwable cause) { super(message, cause); }
+}
+
+================================================================================
+FILE: src/com/atm/service/BankingService.java
+================================================================================
+
+package com.atm.service;
+
+import com.atm.dao.*;
+import com.atm.model.*;
+import com.atm.security.PasswordHasher;
+import java.math.BigDecimal;
+import java.security.SecureRandom;
+import java.sql.*;
+import java.util.List;
+import java.util.UUID;
+
+public final class BankingService {
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final String DUMMY_HASH = PasswordHasher.hash("0000".toCharArray());
+    private final Database.ConnectionFactory connections;
+    private final UserDAO users = new UserDAO();
+    private final AccountDAO accounts = new AccountDAO();
+    private final TransactionDAO transactions = new TransactionDAO();
+
+    public BankingService() { this(Database::open); }
+    public BankingService(Database.ConnectionFactory connections) { this.connections = connections; }
+    @FunctionalInterface private interface Work<T> { T run(Connection c) throws SQLException; }
+
+    private <T> T transaction(Work<T> work) {
+        try (Connection c = connections.open()) {
+            c.setAutoCommit(false);
+            try {
+                T result = work.run(c);
+                c.commit();
+                return result;
+            } catch (SQLException | RuntimeException e) {
+                try { c.rollback(); } catch (SQLException rollback) { e.addSuppressed(rollback); }
+                throw e;
+            }
+        } catch (SQLException e) { throw new BankingException("The database operation could not be completed. Please try again.", e); }
+    }
+
+    public CustomerSummary register(String fullName, char[] pin) {
+        String name = Validation.name(fullName);
+        Validation.pin(pin);
+        String hash = PasswordHasher.hash(pin);
+        for (int retry = 0; retry < 5; retry++) {
+            String number = Long.toString(RANDOM.nextLong(100_000_000_000L, 1_000_000_000_000L));
+            try {
+                return transaction(c -> {
+                    long userId = users.insert(c, name, number, hash);
+                    accounts.insert(c, userId);
+                    return accounts.summary(c, userId);
+                });
+            } catch (BankingException e) {
+                if (!(e.getCause() instanceof SQLException sql) || sql.getErrorCode() != 1062) throw e;
+            }
+        }
+        throw new BankingException("Could not allocate an account number. Please retry.");
+    }
+
+    private record AuthenticationResult(CustomerSummary customer, boolean locked) {}
+
+    public CustomerSummary login(String number, char[] pin) {
+        Validation.accountNumber(number); Validation.pin(pin);
+        AuthenticationResult result = transaction(c -> {
+            User user = users.findByNumber(c, number, true);
+            if (user == null) { PasswordHasher.verify(pin, DUMMY_HASH); return new AuthenticationResult(null, false); }
+            if (user.locked()) return new AuthenticationResult(null, true);
+            if (!PasswordHasher.verify(pin, user.pinHash())) return new AuthenticationResult(null, failedPin(c, user));
+            users.attempts(c, user.id(), 0, false);
+            return new AuthenticationResult(accounts.summary(c, user.id()), false);
+        });
+        // Fail only after committing the failed-attempt counter.
+        if (result.locked()) throw new AccountLockedException();
+        if (result.customer() == null) throw new AuthenticationException("Invalid account number or PIN.");
+        return result.customer();
+    }
+
+    private boolean failedPin(Connection c, User user) throws SQLException {
+        int attempts = Math.min(3, user.failedAttempts() + 1);
+        users.attempts(c, user.id(), attempts, attempts >= 3);
+        return attempts >= 3;
+    }
+    private User activeUser(Connection c, long userId, boolean lock) throws SQLException {
+        User user = users.findById(c, userId, lock);
+        if (user == null) throw new AuthenticationException("Please log in again.");
+        if (user.locked()) throw new AccountLockedException();
+        return user;
+    }
+
+    public CustomerSummary customer(long userId) {
+        return transaction(c -> { activeUser(c, userId, false); return accounts.summary(c, userId); });
+    }
+
+    public String deposit(long userId, BigDecimal input, String inputNotes) {
+        BigDecimal amount = Validation.amount(input); String notes = Validation.notes(inputNotes);
+        return transaction(c -> {
+            activeUser(c, userId, true);
+            Account account = accounts.findByUser(c, userId, true);
+            BigDecimal after = Validation.credit(account.balance(), amount);
+            String reference = UUID.randomUUID().toString();
+            accounts.balance(c, account.id(), after);
+            transactions.insert(c, account.id(), TransactionType.DEPOSIT, amount, null, reference, after, notes);
+            return reference;
+        });
+    }
+
+    public String withdraw(long userId, BigDecimal input, String inputNotes) {
+        BigDecimal amount = Validation.amount(input); String notes = Validation.notes(inputNotes);
+        return transaction(c -> {
+            activeUser(c, userId, true);
+            Account account = accounts.findByUser(c, userId, true);
+            if (account.balance().compareTo(amount) < 0) throw new InsufficientBalanceException();
+            BigDecimal after = account.balance().subtract(amount);
+            String reference = UUID.randomUUID().toString();
+            accounts.balance(c, account.id(), after);
+            transactions.insert(c, account.id(), TransactionType.WITHDRAWAL, amount, null, reference, after, notes);
+            return reference;
+        });
+    }
+
+    public String transfer(long userId, String destination, BigDecimal input, String inputNotes) {
+        Validation.accountNumber(destination);
+        BigDecimal amount = Validation.amount(input); String notes = Validation.notes(inputNotes);
+        return transaction(c -> {
+            User sender = activeUser(c, userId, true);
+            if (sender.accountNumber().equals(destination)) throw new BankingException("Choose a different recipient account.");
+            User recipient = users.findByNumber(c, destination, false);
+            if (recipient == null) throw new BankingException("Recipient account was not found.");
+            Account from = accounts.findByUser(c, userId, false);
+            Account to = accounts.findByUser(c, recipient.id(), false);
+            // Always acquire balance locks in a global order to avoid opposing-transfer deadlocks.
+            Account first = accounts.lockById(c, Math.min(from.id(), to.id()));
+            Account second = accounts.lockById(c, Math.max(from.id(), to.id()));
+            from = first.id() == from.id() ? first : second;
+            to = first.id() == to.id() ? first : second;
+            if (from.balance().compareTo(amount) < 0) throw new InsufficientBalanceException();
+            BigDecimal debit = from.balance().subtract(amount);
+            BigDecimal credit = Validation.credit(to.balance(), amount);
+            String reference = UUID.randomUUID().toString();
+            accounts.balance(c, from.id(), debit);
+            accounts.balance(c, to.id(), credit);
+            transactions.insert(c, from.id(), TransactionType.TRANSFER_OUT, amount, destination, reference + "-D", debit, notes);
+            transactions.insert(c, to.id(), TransactionType.TRANSFER_IN, amount, sender.accountNumber(), reference + "-C", credit, notes);
+            return reference + "-D";
+        });
+    }
+
+    public List<BankTransaction> miniStatement(long userId) {
+        return transaction(c -> {
+            activeUser(c, userId, false);
+            return transactions.history(c, accounts.findByUser(c, userId, false).id(), 10);
+        });
+    }
+
+    public void changePin(long userId, char[] currentPin, char[] newPin) {
+        Validation.pin(currentPin); Validation.pin(newPin);
+        if (java.util.Arrays.equals(currentPin, newPin)) throw new BankingException("Choose a different new PIN.");
+        int result = transaction(c -> {
+            User user = activeUser(c, userId, true);
+            if (!PasswordHasher.verify(currentPin, user.pinHash())) return failedPin(c, user) ? 2 : 1;
+            users.changePin(c, userId, PasswordHasher.hash(newPin));
+            return 0;
+        });
+        if (result == 2) throw new AccountLockedException();
+        if (result == 1) throw new AuthenticationException("Current PIN is incorrect.");
+    }
+
+    public List<CustomerSummary> customers(String number) {
+        String query = number == null || number.isBlank() ? null : Validation.accountNumber(number);
+        return transaction(c -> accounts.search(c, query));
+    }
+    public List<BankTransaction> adminHistory(String number) {
+        Validation.accountNumber(number);
+        return transaction(c -> {
+            User user = users.findByNumber(c, number, false);
+            if (user == null) throw new BankingException("Customer was not found.");
+            return transactions.history(c, accounts.findByUser(c, user.id(), false).id(), 0);
+        });
+    }
+    public void unlock(String number) {
+        Validation.accountNumber(number);
+        transaction(c -> {
+            User user = users.findByNumber(c, number, true);
+            if (user == null) throw new BankingException("Customer was not found.");
+            users.attempts(c, user.id(), 0, false);
+            return null;
+        });
+    }
+}
+
+================================================================================
+FILE: src/com/atm/service/InsufficientBalanceException.java
+================================================================================
+
+package com.atm.service;
+
+public class InsufficientBalanceException extends BankingException {
+    public InsufficientBalanceException() { super("Insufficient balance."); }
+}
+
+================================================================================
+FILE: src/com/atm/service/Validation.java
+================================================================================
+
+package com.atm.service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+public final class Validation {
+    public static final BigDecimal MAX_AMOUNT = new BigDecimal("1000000000.00");
+    public static final BigDecimal MAX_BALANCE = new BigDecimal("99999999999999999.99");
+    private Validation() {}
+
+    public static String name(String value) {
+        if (value == null) throw new BankingException("Name is required.");
+        String name = value.strip().replaceAll("\\s+", " ");
+        if (name.length() < 2 || name.length() > 100 ||
+            !name.matches("[\\p{L}\\p{M}][\\p{L}\\p{M} .'-]*"))
+            throw new BankingException("Name must contain 2–100 letters, spaces, apostrophes, periods or hyphens.");
+        return name;
+    }
+
+    public static String accountNumber(String value) {
+        if (value == null || !value.matches("[0-9]{12}"))
+            throw new BankingException("Account number must contain exactly 12 digits.");
+        return value;
+    }
+
+    public static void pin(char[] pin) {
+        if (pin == null || pin.length != 4) throw new BankingException("PIN must contain exactly four digits.");
+        for (char c : pin) if (c < '0' || c > '9')
+            throw new BankingException("PIN must contain exactly four digits.");
+    }
+
+    public static BigDecimal amount(String value) {
+        if (value == null || value.length() > 30 || !value.matches("[0-9]+(\\.[0-9]{1,2})?"))
+            throw new BankingException("Enter a positive amount with at most two decimal places.");
+        return amount(new BigDecimal(value));
+    }
+
+    public static BigDecimal amount(BigDecimal value) {
+        if (value == null || value.signum() <= 0 || value.compareTo(MAX_AMOUNT) > 0)
+            throw new BankingException("Amount must be between 0.01 and 1,000,000,000.00.");
+        try { return value.setScale(2, RoundingMode.UNNECESSARY); }
+        catch (ArithmeticException e) { throw new BankingException("Amount must have at most two decimal places."); }
+    }
+
+    public static String notes(String value) {
+        String notes = value == null ? "" : value.strip();
+        if (notes.length() > 255 || notes.chars().anyMatch(Character::isISOControl))
+            throw new BankingException("Notes must be at most 255 characters without control characters.");
+        return notes;
+    }
+
+    public static BigDecimal credit(BigDecimal balance, BigDecimal amount) {
+        BigDecimal result = balance.add(amount);
+        if (result.compareTo(MAX_BALANCE) > 0) throw new BankingException("Account balance limit exceeded.");
+        return result;
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/AdminServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import com.atm.security.AdminAuthenticator;
+import com.atm.service.AuthenticationException;
+import com.atm.service.BankingException;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.util.Arrays;
+
+@WebServlet("/admin")
+public final class AdminServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        boolean authenticated = Boolean.TRUE.equals(req.getSession().getAttribute("admin"));
+        req.setAttribute("adminAuthenticated", authenticated);
+        if (authenticated) {
+            req.setAttribute("customers", BANK.customers(req.getParameter("accountNumber")).stream().map(Web::customerView).toList());
+            String selected = req.getParameter("selected");
+            if (selected != null && !selected.isBlank()) req.setAttribute("transactions", transactionViews(BANK.adminHistory(selected)));
+        }
+        view(req, resp, "admin");
+    }
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String action = req.getParameter("action");
+        if ("login".equals(action)) {
+            char[] password = secret(req, "password", 256);
+            try {
+                if (!AdminAuthenticator.authenticate(req.getParameter("username"), password))
+                    throw new AuthenticationException("Administrator login failed or temporarily throttled.");
+                rotateSession(req); req.getSession().setAttribute("admin", true);
+                req.getSession().setMaxInactiveInterval(AdminAuthenticator.sessionMinutes() * 60);
+                success(req, resp, "/admin", "Administrator signed in.");
+            } finally { Arrays.fill(password, '\0'); }
+            return;
+        }
+        if (!Boolean.TRUE.equals(req.getSession().getAttribute("admin"))) throw new AuthenticationException("Administrator login required.");
+        if ("logout".equals(action)) {
+            req.getSession().invalidate(); resp.setStatus(303); resp.setHeader("Location", req.getContextPath() + "/admin");
+        } else if ("unlock".equals(action)) {
+            BANK.unlock(req.getParameter("accountNumber")); success(req, resp, "/admin", "Account unlocked.");
+        } else throw new BankingException("Unknown administrator action.");
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/ChangePinServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.util.Arrays;
+
+@WebServlet("/change-pin")
+public final class ChangePinServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException { view(req, resp, "change-pin"); }
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        char[] current = secret(req, "currentPin", 4);
+        char[] next = null;
+        try {
+            next = secret(req, "newPin", 4);
+            BANK.changePin(userId(req), current, next);
+            rotateSession(req);
+            success(req, resp, "/login", "PIN changed. Please log in with your new PIN.");
+        } finally { Arrays.fill(current, '\0'); if (next != null) Arrays.fill(next, '\0'); }
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/DashboardServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/dashboard")
+public final class DashboardServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        long id = userId(req);
+        req.setAttribute("customer", customerView(BANK.customer(id)));
+        req.setAttribute("transactions", transactionViews(BANK.miniStatement(id)));
+        view(req, resp, "dashboard");
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/DepositServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import com.atm.service.Validation;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/deposit")
+public final class DepositServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException { view(req, resp, "deposit"); }
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String ref = BANK.deposit(userId(req), Validation.amount(req.getParameter("amount")), req.getParameter("notes"));
+        success(req, resp, "/dashboard", "Deposit successful. Reference: " + ref);
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/LoginServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.util.Arrays;
+
+@WebServlet("/login")
+public final class LoginServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException { view(req, resp, "login"); }
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        char[] pin = secret(req, "pin", 4);
+        try {
+            var customer = BANK.login(req.getParameter("accountNumber"), pin);
+            rotateSession(req); req.getSession().setAttribute("userId", customer.userId());
+            success(req, resp, "/dashboard", "Welcome, " + customer.fullName() + ".");
+        } finally { Arrays.fill(pin, '\0'); }
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/LogoutServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/logout")
+public final class LogoutServlet extends Web {
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        req.getSession().invalidate(); resp.setStatus(303); resp.setHeader("Location", req.getContextPath() + "/login");
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/RegistrationServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.util.Arrays;
+
+@WebServlet("/register")
+public final class RegistrationServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException { view(req, resp, "register"); }
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        char[] pin = secret(req, "pin", 4);
+        try {
+            var customer = BANK.register(req.getParameter("name"), pin);
+            success(req, resp, "/login", "Account created. Your account number is " + customer.accountNumber() + ". Please log in.");
+        } finally { Arrays.fill(pin, '\0'); }
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/StatementServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/statement")
+public final class StatementServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.setAttribute("transactions", transactionViews(BANK.miniStatement(userId(req))));
+        view(req, resp, "statement");
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/TransferServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import com.atm.service.Validation;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/transfer")
+public final class TransferServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException { view(req, resp, "transfer"); }
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String ref = BANK.transfer(userId(req), req.getParameter("recipient"), Validation.amount(req.getParameter("amount")), req.getParameter("notes"));
+        success(req, resp, "/dashboard", "Transfer successful. Reference: " + ref);
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/Web.java
+================================================================================
+
+package com.atm.servlet;
+
+import com.atm.model.*;
+import com.atm.service.*;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.*;
+
+/** Controller helpers and presentation-only mapping shared by servlets. */
+public abstract class Web extends HttpServlet {
+    protected static final BankingService BANK = new BankingService();
+    private static final SecureRandom RANDOM = new SecureRandom();
+
+    @Override protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        try { super.service(req, resp); }
+        catch (BankingException e) {
+            if (e.getCause() != null) getServletContext().log("Banking operation failed", e);
+            if (e instanceof AccountLockedException) req.getSession().removeAttribute("userId");
+            error(req, resp, e instanceof AuthenticationException ? 401 : 400, e.getMessage());
+        } catch (RuntimeException e) {
+            getServletContext().log("Unexpected application failure", e);
+            error(req, resp, 500, "The operation could not be completed. Please try again later.");
+        }
+    }
+
+    public static String escape(Object value) {
+        return value == null ? "" : value.toString().replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
+    }
+    public static String csrf(HttpServletRequest req) {
+        HttpSession session = req.getSession();
+        String token = (String) session.getAttribute("csrf");
+        if (token == null) {
+            byte[] bytes = new byte[32]; RANDOM.nextBytes(bytes);
+            token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            session.setAttribute("csrf", token);
+        }
+        return token;
+    }
+    public static void view(HttpServletRequest req, HttpServletResponse resp, String page) throws ServletException, IOException {
+        req.setAttribute("context", req.getContextPath());
+        req.setAttribute("csrf", csrf(req));
+        Object flash = req.getSession().getAttribute("flash");
+        req.setAttribute("message", escape(flash)); req.getSession().removeAttribute("flash");
+        req.getRequestDispatcher("/WEB-INF/views/" + page + ".jsp").forward(req, resp);
+    }
+    public static void error(HttpServletRequest req, HttpServletResponse resp, int code, String message) throws ServletException, IOException {
+        resp.setStatus(code); req.setAttribute("error", escape(message)); view(req, resp, "error");
+    }
+    protected static long userId(HttpServletRequest req) {
+        Object id = req.getSession().getAttribute("userId");
+        if (!(id instanceof Long userId)) throw new AuthenticationException("Please log in again.");
+        return userId;
+    }
+    protected static void rotateSession(HttpServletRequest req) {
+        req.getSession().invalidate(); req.getSession(true); req.changeSessionId(); csrf(req);
+    }
+    protected static void success(HttpServletRequest req, HttpServletResponse resp, String path, String message) throws IOException {
+        req.getSession().setAttribute("flash", message);
+        resp.setStatus(303); resp.setHeader("Location", req.getContextPath() + path);
+    }
+    protected static char[] secret(HttpServletRequest req, String name, int max) {
+        String value = req.getParameter(name);
+        if (value == null || value.length() > max) throw new BankingException("Invalid secret input.");
+        return value.toCharArray();
+    }
+    protected static Map<String, String> customerView(CustomerSummary c) {
+        return Map.of("name", escape(c.fullName()), "number", c.accountNumber(), "balance", c.balance().toPlainString(),
+            "status", c.locked() ? "Locked" : "Active", "attempts", Integer.toString(c.failedAttempts()));
+    }
+    protected static List<Map<String, String>> transactionViews(List<BankTransaction> transactions) {
+        return transactions.stream().map(t -> Map.of("time", escape(t.createdAt()), "type", t.type().name(),
+            "amount", t.amount().toPlainString(), "counterparty", escape(t.counterpartyAccountNumber()),
+            "reference", escape(t.referenceNumber()), "balance", t.balanceAfter().toPlainString(), "notes", escape(t.notes()))).toList();
+    }
+}
+
+================================================================================
+FILE: src/com/atm/servlet/WithdrawServlet.java
+================================================================================
+
+package com.atm.servlet;
+
+import com.atm.service.Validation;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/withdraw")
+public final class WithdrawServlet extends Web {
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException { view(req, resp, "withdraw"); }
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String ref = BANK.withdraw(userId(req), Validation.amount(req.getParameter("amount")), req.getParameter("notes"));
+        success(req, resp, "/dashboard", "Withdrawal successful. Reference: " + ref);
+    }
+}
+
+================================================================================
+FILE: tests/com/atm/tests/BankingIntegrationTest.java
+================================================================================
+
+package com.atm.tests;
+
+import com.atm.dao.Database;
+import com.atm.model.*;
+import com.atm.service.*;
+import java.lang.reflect.*;
+import java.math.BigDecimal;
+import java.sql.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public final class BankingIntegrationTest {
+    private static int checks;
+    private static void check(boolean condition, String message) {
+        if (!condition) throw new AssertionError(message);
+        checks++;
+    }
+    private static void money(BigDecimal actual, String expected) {
+        check(actual.compareTo(new BigDecimal(expected)) == 0, "Expected " + expected + ", got " + actual);
+    }
+    private static void fails(Class<? extends Throwable> type, Runnable task) {
+        try { task.run(); } catch (Throwable e) {
+            if (type.isInstance(e)) { checks++; return; }
+            throw new AssertionError("Unexpected exception", e);
+        }
+        throw new AssertionError("Expected " + type.getSimpleName());
+    }
+    private static BigDecimal value(String v) { return new BigDecimal(v); }
+    private static long countUsers() throws SQLException {
+        try (Connection c = Database.open(); PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM users"); ResultSet r = p.executeQuery()) {
+            r.next(); return r.getLong(1);
+        }
+    }
+    private static BankingService failingService(boolean registration) {
+        return new BankingService(() -> {
+            Connection real = Database.open(); AtomicInteger balanceWrites = new AtomicInteger();
+            return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[]{Connection.class}, (proxy, method, args) -> {
+                if (method.getName().equals("prepareStatement") && args[0] instanceof String sql &&
+                    ((registration && sql.startsWith("INSERT INTO accounts")) ||
+                     (!registration && sql.startsWith("UPDATE accounts SET balance") && balanceWrites.incrementAndGet() == 2)))
+                    throw new SQLException("Deliberate test failure after earlier write");
+                try { return method.invoke(real, args); }
+                catch (InvocationTargetException e) { throw e.getCause(); }
+            });
+        });
+    }
+    public static void main(String[] args) throws Exception {
+        BankingService service = new BankingService();
+        long before = countUsers();
+        fails(BankingException.class, () -> failingService(true).register("Rollback Customer", "1234".toCharArray()));
+        check(countUsers() == before, "Registration rollback removed the partial user");
+        CustomerSummary a = service.register("Integration Alice", "1234".toCharArray());
+        CustomerSummary b = service.register("Integration Bob", "5678".toCharArray());
+        check(a.accountNumber().matches("[0-9]{12}") && !a.accountNumber().equals(b.accountNumber()), "Unique 12-digit accounts");
+        money(a.balance(), "0.00");
+        check(service.login(a.accountNumber(), "1234".toCharArray()).userId() == a.userId(), "Login");
+        fails(AuthenticationException.class, () -> service.login(a.accountNumber(), "9999".toCharArray()));
+        fails(AuthenticationException.class, () -> service.login(a.accountNumber(), "9999".toCharArray()));
+        fails(AccountLockedException.class, () -> service.login(a.accountNumber(), "9999".toCharArray()));
+        fails(AccountLockedException.class, () -> service.deposit(a.userId(), value("10"), "locked"));
+        check(service.customers(a.accountNumber()).getFirst().failedAttempts() == 3, "Failed attempts persisted");
+        service.unlock(a.accountNumber());
+        service.login(a.accountNumber(), "1234".toCharArray());
+        service.changePin(a.userId(), "1234".toCharArray(), "4321".toCharArray());
+        fails(AuthenticationException.class, () -> service.login(a.accountNumber(), "1234".toCharArray()));
+        service.login(a.accountNumber(), "4321".toCharArray());
+        service.deposit(a.userId(), value("200.25"), "initial");
+        service.withdraw(a.userId(), value("0.25"), "fraction");
+        fails(InsufficientBalanceException.class, () -> service.withdraw(a.userId(), value("201"), "overdraft"));
+        money(service.customer(a.userId()).balance(), "200.00");
+        fails(BankingException.class, () -> service.transfer(a.userId(), a.accountNumber(), value("1"), "self"));
+        int oldLedger = service.adminHistory(a.accountNumber()).size();
+        fails(BankingException.class, () -> failingService(false).transfer(a.userId(), b.accountNumber(), value("10"), "forced rollback"));
+        money(service.customer(a.userId()).balance(), "200.00");
+        money(service.customer(b.userId()).balance(), "0.00");
+        check(service.adminHistory(a.accountNumber()).size() == oldLedger, "No ledger entry after rollback");
+        String reference = service.transfer(a.userId(), b.accountNumber(), value("25.50"), "paired");
+        BankTransaction debit = service.adminHistory(a.accountNumber()).getFirst();
+        BankTransaction credit = service.adminHistory(b.accountNumber()).getFirst();
+        check(reference.equals(debit.referenceNumber()), "Returned debit reference");
+        check(credit.referenceNumber().equals(reference.substring(0, 36) + "-C"), "Linked unique credit reference");
+        check(debit.type() == TransactionType.TRANSFER_OUT && credit.type() == TransactionType.TRANSFER_IN, "Both ledger types");
+        money(service.customer(a.userId()).balance(), "174.50");
+        money(service.customer(b.userId()).balance(), "25.50");
+        service.deposit(b.userId(), value("174.50"), "concurrency seed");
+        try (ExecutorService pool = Executors.newFixedThreadPool(4)) {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                final boolean forward = i % 2 == 0;
+                futures.add(pool.submit(() -> {
+                    for (int n = 0; n < 10; n++) service.transfer(forward ? a.userId() : b.userId(),
+                        forward ? b.accountNumber() : a.accountNumber(), value("1.00"), "concurrent");
+                }));
+            }
+            for (Future<?> future : futures) future.get(60, TimeUnit.SECONDS);
+        }
+        money(service.customer(a.userId()).balance(), "174.50");
+        money(service.customer(b.userId()).balance(), "200.00");
+        check(service.miniStatement(a.userId()).size() == 10, "Mini statement limited to ten");
+        Set<String> refs = new HashSet<>();
+        for (BankTransaction tx : service.adminHistory(a.accountNumber())) check(refs.add(tx.referenceNumber()), "Unique reference");
+        CustomerSummary race = service.register("Withdrawal Race", "1111".toCharArray());
+        service.deposit(race.userId(), value("100"), "seed");
+        AtomicInteger winners = new AtomicInteger();
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < 2; i++) futures.add(pool.submit(() -> {
+                try { service.withdraw(race.userId(), value("80"), "race"); winners.incrementAndGet(); }
+                catch (InsufficientBalanceException expected) { /* Only one withdrawal may commit. */ }
+            }));
+            for (Future<?> f : futures) f.get(30, TimeUnit.SECONDS);
+        }
+        check(winners.get() == 1, "Concurrent overdraft prevented");
+        money(service.customer(race.userId()).balance(), "20.00");
+        System.out.println("MySQL banking integration: " + checks + " checks passed");
+    }
+}
+
+================================================================================
+FILE: tests/com/atm/tests/DesktopSmokeTest.java
+================================================================================
+
+package com.atm.tests;
+
+import com.atm.desktop.AdminDashboard;
+import java.awt.*;
+import java.nio.file.*;
+import java.time.Duration;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.swing.*;
+
+public final class DesktopSmokeTest {
+    private static AdminDashboard frame;
+    private static <T extends Component> T find(Container root, Class<T> type, String text) {
+        for (Component c : root.getComponents()) {
+            if (type.isInstance(c) && (text == null || (c instanceof AbstractButton b && text.equals(b.getText())))) return type.cast(c);
+            if (c instanceof Container nested) { T found = find(nested, type, text); if (found != null) return found; }
+        }
+        return null;
+    }
+    private static void waitFor(Callable<Boolean> condition, String description) throws Exception {
+        long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(12);
+        while (System.nanoTime() < end) {
+            AtomicReference<Boolean> ok = new AtomicReference<>(false);
+            SwingUtilities.invokeAndWait(() -> { try { ok.set(condition.call()); } catch (Exception e) { throw new RuntimeException(e); } });
+            if (ok.get()) return;
+            Thread.sleep(50);
+        }
+        throw new AssertionError("Timed out: " + description);
+    }
+    public static void main(String[] args) throws Exception {
+        if (GraphicsEnvironment.isHeadless()) throw new IllegalStateException("Graphical display required; use xvfb-run on Linux");
+        String file = System.getenv("ATM_TEST_ADMIN_PASSWORD_FILE");
+        if (file == null) throw new IllegalArgumentException("Set ATM_TEST_ADMIN_PASSWORD_FILE to a private admin password file for this test");
+        String password = Files.readString(Path.of(file)).strip();
+        try {
+            SwingUtilities.invokeAndWait(() -> {
+                frame = new AdminDashboard(Duration.ofSeconds(3)); frame.setVisible(true);
+                find(frame, JPasswordField.class, null).setText(password);
+                find(frame, JButton.class, "Sign in").doClick();
+            });
+            waitFor(() -> find(frame, JTable.class, null).getRowCount() > 0, "load customer JTable after authenticated login");
+            SwingUtilities.invokeAndWait(() -> {
+                find(frame, JTable.class, null).setRowSelectionInterval(0, 0);
+                find(frame, JButton.class, "View history").doClick();
+            });
+            waitFor(() -> {
+                for (Component c : frame.getContentPane().getComponents())
+                    if (c instanceof JLabel label && label.getText().contains("transaction(s) for")) return true;
+                return false;
+            }, "selected customer history");
+            waitFor(() -> {
+                for (Component c : frame.getContentPane().getComponents())
+                    if (c instanceof JLabel label && label.getText().contains("Session expired")) return true;
+                return false;
+            }, "desktop automatic logout");
+        } finally { if (frame != null) SwingUtilities.invokeAndWait(frame::dispose); }
+        for (Thread thread : Thread.getAllStackTraces().keySet())
+            if (thread.isAlive() && (thread.getName().equals("atm-clock") || thread.getName().equals("atm-session-monitor")))
+                throw new AssertionError("Leaked dashboard thread");
+        System.out.println("Swing smoke: real frame, admin login, customer table, history, idle logout, clean close passed");
+    }
+}
+
+================================================================================
+FILE: tests/com/atm/tests/SecurityTest.java
+================================================================================
+
+package com.atm.tests;
+
+import com.atm.security.PasswordHasher;
+import com.atm.service.*;
+import java.math.BigDecimal;
+
+public final class SecurityTest {
+    private static int checks;
+    public static void check(boolean condition, String message) {
+        if (!condition) throw new AssertionError(message);
+        checks++;
+    }
+    public static void rejects(Runnable task) {
+        try { task.run(); } catch (BankingException e) { checks++; return; }
+        throw new AssertionError("Invalid input was accepted");
+    }
+    public static void main(String[] args) {
+        String a = PasswordHasher.hash("0123".toCharArray());
+        String b = PasswordHasher.hash("0123".toCharArray());
+        check(!a.equals(b), "Independent random salts");
+        check(PasswordHasher.verify("0123".toCharArray(), a), "Correct PIN");
+        check(!PasswordHasher.verify("9999".toCharArray(), a), "Incorrect PIN");
+        check(!PasswordHasher.verify("0123".toCharArray(), "pbkdf2-sha256$1$bad$bad"), "Reject weak hash");
+        check(!PasswordHasher.verify("0123".toCharArray(), a + "x"), "Reject corrupt hash");
+        check(!PasswordHasher.verify("0123".toCharArray(), "plaintext"), "Reject plaintext");
+        Validation.pin("0000".toCharArray());
+        rejects(() -> Validation.pin("１２３４".toCharArray()));
+        rejects(() -> Validation.pin("123".toCharArray()));
+        rejects(() -> Validation.pin("abcd".toCharArray()));
+        check(Validation.amount("10.25").equals(new BigDecimal("10.25")), "Exact decimal");
+        for (String bad : new String[]{"0", "-1", "1.001", "1e3", "NaN", "1000000001", " 2", ""})
+            rejects(() -> Validation.amount(bad));
+        rejects(() -> Validation.amount(new BigDecimal("1.111")));
+        rejects(() -> Validation.accountNumber("123"));
+        rejects(() -> Validation.name("<script>"));
+        rejects(() -> Validation.notes("x\nInjected"));
+        rejects(() -> Validation.credit(Validation.MAX_BALANCE, new BigDecimal("0.01")));
+        check(Validation.name("  Ada   Lovelace ").equals("Ada Lovelace"), "Normalize name");
+        System.out.println("Security and validation: " + checks + " checks passed");
+    }
+}
+
+================================================================================
+FILE: tests/com/atm/tests/ThreadTest.java
+================================================================================
+
+package com.atm.tests;
+
+import com.atm.desktop.*;
+import java.time.Duration;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.swing.SwingUtilities;
+
+public final class ThreadTest {
+    public static void main(String[] args) throws Exception {
+        CountDownLatch tick = new CountDownLatch(1), expired = new CountDownLatch(1);
+        AtomicBoolean safeClock = new AtomicBoolean(), safeExpiry = new AtomicBoolean();
+        ClockThread clock = new ClockThread(text -> { safeClock.set(SwingUtilities.isEventDispatchThread() && !text.isBlank()); tick.countDown(); });
+        SessionMonitorThread monitor = new SessionMonitorThread(Duration.ofMillis(150), () -> { safeExpiry.set(SwingUtilities.isEventDispatchThread()); expired.countDown(); });
+        clock.start(); monitor.start(); monitor.setActive(true);
+        try {
+            if (!tick.await(3, TimeUnit.SECONDS) || !expired.await(3, TimeUnit.SECONDS) || !safeClock.get() || !safeExpiry.get())
+                throw new AssertionError("Clock and timeout callbacks must run on the EDT");
+        } finally { clock.shutdown(); monitor.shutdown(); clock.join(1000); monitor.join(1000); }
+        if (clock.isAlive() || monitor.isAlive()) throw new AssertionError("Threads did not terminate");
+        System.out.println("Thread tests: clock, idle expiry, EDT safety, clean shutdown passed");
+    }
+}
+
+================================================================================
+FILE: tests/com/atm/tests/WebSmokeTest.java
+================================================================================
+
+package com.atm.tests;
+
+import java.net.*;
+import java.net.http.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.time.Duration;
+import java.util.*;
+import java.util.regex.*;
+
+/** End-to-end requests to the actual Servlet/JSP application, not a REST API. */
+public final class WebSmokeTest {
+    private final CookieManager cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
+    private final HttpClient client = HttpClient.newBuilder().cookieHandler(cookies).connectTimeout(Duration.ofSeconds(5)).build();
+    private final String base = System.getenv().getOrDefault("ATM_BASE_URL", "http://127.0.0.1:8080/atm");
+    private int checks;
+    private void check(boolean condition, String message) {
+        if (!condition) throw new AssertionError(message);
+        checks++;
+    }
+    private HttpResponse<String> get(String path) throws Exception {
+        return client.send(HttpRequest.newBuilder(URI.create(base + path)).timeout(Duration.ofSeconds(20)).GET().build(), HttpResponse.BodyHandlers.ofString());
+    }
+    private HttpResponse<String> post(String path, Map<String,String> values) throws Exception {
+        StringJoiner body = new StringJoiner("&");
+        values.forEach((key, value) -> body.add(URLEncoder.encode(key, StandardCharsets.UTF_8) + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8)));
+        return client.send(HttpRequest.newBuilder(URI.create(base + path)).timeout(Duration.ofSeconds(20))
+            .header("Content-Type", "application/x-www-form-urlencoded").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build(), HttpResponse.BodyHandlers.ofString());
+    }
+    private String token(String path) throws Exception {
+        var response = get(path);
+        check(response.statusCode() == 200, "GET " + path + " returned " + response.statusCode());
+        Matcher matcher = Pattern.compile("name=\"csrf\" value=\"([^\"]+)\"").matcher(response.body());
+        if (!matcher.find()) throw new AssertionError("No CSRF token on " + path);
+        return matcher.group(1);
+    }
+    private String register(String name, String pin) throws Exception {
+        check(post("/register", Map.of("csrf", token("/register"), "name", name, "pin", pin)).statusCode() == 303, "Registration");
+        String body = get("/login").body();
+        Matcher number = Pattern.compile("account number is ([0-9]{12})").matcher(body);
+        if (!number.find()) throw new AssertionError("Missing generated account number");
+        return number.group(1);
+    }
+    private String sessionId() {
+        return cookies.getCookieStore().getCookies().stream().filter(c -> c.getName().equals("JSESSIONID")).findFirst().orElseThrow().getValue();
+    }
+    private void run() throws Exception {
+        check(get("/").statusCode() == 200, "Landing page");
+        for (String route : List.of("/dashboard", "/deposit", "/withdraw", "/transfer", "/statement", "/change-pin"))
+            check(get(route).statusCode() == 302, "Protect " + route);
+        check(get("/WEB-INF/views/dashboard.jsp").statusCode() == 404, "Protect direct JSP access");
+        check(post("/register", Map.of("name", "Forged Request", "pin", "1111")).statusCode() == 403, "Registration CSRF");
+        String recipient = register("Web Recipient", "5678");
+        String sender = register("Web Customer", "1234");
+        String csrf = token("/login"), originalSession = sessionId();
+        check(post("/login", Map.of("csrf", csrf, "accountNumber", sender, "pin", "1234")).statusCode() == 303, "Login");
+        check(!originalSession.equals(sessionId()), "Rotate login session ID");
+        var dashboard = get("/dashboard");
+        check(dashboard.statusCode() == 200 && dashboard.body().contains(sender) && dashboard.body().contains("Web Customer"), "Dashboard data");
+        check(dashboard.headers().firstValue("Cache-Control").orElse("").contains("no-store"), "No cache");
+        check(dashboard.headers().firstValue("Content-Security-Policy").isPresent(), "CSP");
+        check(post("/deposit", Map.of("csrf", csrf, "amount", "1")).statusCode() == 403, "Old session token rejected");
+        csrf = token("/deposit");
+        check(post("/deposit", Map.of("csrf", csrf, "amount", "100.25", "notes", "<script>alert(1)</script>")).statusCode() == 303, "Deposit");
+        dashboard = get("/dashboard");
+        check(dashboard.body().contains("100.25"), "Deposited balance");
+        check(dashboard.body().contains("&lt;script&gt;") && !dashboard.body().contains("<script>"), "Escape transaction notes");
+        check(post("/withdraw", Map.of("csrf", csrf, "amount", "999")).statusCode() == 400, "Reject overdraft");
+        check(post("/withdraw", Map.of("csrf", csrf, "amount", "10.25")).statusCode() == 303, "Withdraw");
+        check(post("/transfer", Map.of("csrf", csrf, "recipient", recipient, "amount", "20")).statusCode() == 303, "Transfer");
+        check(get("/dashboard").body().contains("70.00"), "Final balance");
+        var statement = get("/statement");
+        check(statement.statusCode() == 200 && statement.body().contains("TRANSFER_OUT") && statement.body().contains(recipient), "Mini statement");
+        check(post("/change-pin", Map.of("csrf", csrf, "currentPin", "1234", "newPin", "4321")).statusCode() == 303, "Change PIN");
+        check(get("/dashboard").statusCode() == 302, "PIN change ends prior session");
+        check(post("/login", Map.of("csrf", token("/login"), "accountNumber", sender, "pin", "4321")).statusCode() == 303, "New PIN login");
+        check(post("/logout", Map.of("csrf", token("/dashboard"))).statusCode() == 303, "Logout");
+        check(get("/dashboard").statusCode() == 302, "Logged out session blocked");
+        csrf = token("/admin");
+        check(post("/admin", Map.of("csrf", csrf, "action", "unlock", "accountNumber", sender)).statusCode() == 401, "Admin operation requires authentication");
+        String passwordFile = System.getenv("ATM_TEST_ADMIN_PASSWORD_FILE");
+        if (passwordFile != null) {
+            String password = Files.readString(Path.of(passwordFile)).strip();
+            check(post("/admin", Map.of("csrf", token("/admin"), "action", "login", "username", "admin", "password", password)).statusCode() == 303, "Admin login");
+            check(get("/admin").body().contains(sender), "Admin customer list");
+            var selected = get("/admin?selected=" + sender + "&accountNumber=" + sender);
+            check(selected.statusCode() == 200 && selected.body().contains("TRANSFER_OUT"), "Admin search/history JSP");
+            check(post("/admin", Map.of("csrf", token("/admin"), "action", "unlock", "accountNumber", sender)).statusCode() == 303, "Admin unlock");
+            check(post("/admin", Map.of("csrf", token("/admin"), "action", "logout")).statusCode() == 303, "Admin logout");
+        } else System.out.println("Authenticated admin HTTP checks skipped: ATM_TEST_ADMIN_PASSWORD_FILE not set");
+        System.out.println("Servlet/JSP HTTP smoke: " + checks + " checks passed");
+    }
+    public static void main(String[] args) throws Exception { new WebSmokeTest().run(); }
+}
+
+================================================================================
+FILE: webapp/META-INF/context.xml
+================================================================================
+
+<?xml version="1.0" encoding="UTF-8"?>
+<Context><CookieProcessor sameSiteCookies="strict" /></Context>
+
+================================================================================
+FILE: webapp/WEB-INF/views/admin.jsp
+================================================================================
+
+<%@ page import="java.util.List,java.util.Map" %>
+<%@ include file="header.jspf" %>
+<% if (!Boolean.TRUE.equals(request.getAttribute("adminAuthenticated"))) { %>
+<section class="card narrow"><p class="eyebrow">ADMINISTRATION</p><h1>Administrator login</h1><form method="post" action="${context}/admin"><input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="action" value="login"><label>Username<input name="username" required maxlength="30" autocomplete="username"></label><label>Password<input type="password" name="password" required maxlength="256" autocomplete="current-password"></label><button type="submit">Sign in</button></form></section>
+<% } else { %>
+<p class="eyebrow">ADMINISTRATION</p><h1>Customer accounts</h1><div class="actions"><form method="get" action="${context}/admin"><label>Search account number<input name="accountNumber" pattern="[0-9]{12}" maxlength="12" placeholder="All customers if empty"></label><button type="submit">Search</button></form><form method="post" action="${context}/admin"><input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="action" value="logout"><button class="secondary" type="submit">Admin logout</button></form></div>
+<section class="card table-scroll"><table><thead><tr><th>Name</th><th>Account</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+<% for (Map<String,String> c : (List<Map<String,String>>) request.getAttribute("customers")) { %>
+<tr><td><%= c.get("name") %></td><td><%= c.get("number") %></td><td><%= c.get("balance") %></td><td><%= c.get("status") %></td><td><a href="${context}/admin?selected=<%= c.get("number") %>">History</a><form method="post" action="${context}/admin"><input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="action" value="unlock"><input type="hidden" name="accountNumber" value="<%= c.get("number") %>"><button class="link" type="submit">Unlock</button></form></td></tr>
+<% } %></tbody></table></section>
+<% if (request.getAttribute("transactions") != null) { %><section class="card"><h2>Customer transaction history</h2><%@ include file="transactions.jspf" %></section><% } %>
+<% } %>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/change-pin.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">ACCOUNT SECURITY</p><h1>Change PIN</h1><p>Choose a different four-digit PIN. You will log in again after changing it.</p><form method="post" action="${context}/change-pin"><input type="hidden" name="csrf" value="${csrf}"><label>Current PIN<input type="password" name="currentPin" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" autocomplete="current-password"></label><label>New PIN<input type="password" name="newPin" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" autocomplete="new-password"></label><button type="submit">Update PIN</button></form></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/dashboard.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<p class="eyebrow">YOUR ACCOUNT AT A GLANCE</p><h1>Welcome, ${customer.name}</h1><div class="account-grid"><section class="balance-card"><p>Available balance</p><strong>${customer.balance}</strong><p>Account ${customer.number}</p></section><section class="card"><h2>Make your next move</h2><div class="actions"><a class="button" href="${context}/deposit">Deposit</a><a class="button secondary" href="${context}/withdraw">Withdraw</a><a class="button secondary" href="${context}/transfer">Transfer funds</a></div></section></div>
+<section class="card"><h2>Recent transactions</h2><%@ include file="transactions.jspf" %></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/deposit.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">ADD FUNDS</p><h1>Deposit</h1><form method="post" action="${context}/deposit"><input type="hidden" name="csrf" value="${csrf}"><label>Amount<input type="number" name="amount" required min="0.01" max="1000000000" step="0.01" inputmode="decimal"></label><label>Notes (optional)<input name="notes" maxlength="255"></label><button type="submit">Confirm deposit</button></form></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/error.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">REQUEST COULD NOT BE COMPLETED</p><h1>Please check your request</h1><p role="alert">${empty error ? 'The requested page is unavailable or the operation could not be completed.' : error}</p><p>Return to the appropriate page and try again.</p><div class="actions"><a class="button" href="${pageContext.request.contextPath}/dashboard">Dashboard</a><a href="${pageContext.request.contextPath}/login">Customer login</a><a href="${pageContext.request.contextPath}/admin">Administrator login</a></div></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/footer.jspf
+================================================================================
+
+</main><footer>Secure ATM · Java 21 · All transaction times in UTC</footer></body></html>
+
+================================================================================
+FILE: webapp/WEB-INF/views/header.jspf
+================================================================================
+
+<%@ page contentType="text/html; charset=UTF-8" %>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Secure ATM · Banking</title><link rel="stylesheet" href="${pageContext.request.contextPath}/assets/style.css"></head><body>
+<header><a class="brand" href="${pageContext.request.contextPath}/">SECURE ATM<span>Banking management</span></a><nav><a href="${pageContext.request.contextPath}/dashboard">Dashboard</a><a href="${pageContext.request.contextPath}/deposit">Deposit</a><a href="${pageContext.request.contextPath}/withdraw">Withdraw</a><a href="${pageContext.request.contextPath}/transfer">Transfer</a><a href="${pageContext.request.contextPath}/statement">Statement</a><a href="${pageContext.request.contextPath}/change-pin">Change PIN</a>
+<% if (session.getAttribute("userId") != null) { %><form method="post" action="${context}/logout"><input type="hidden" name="csrf" value="${csrf}"><button class="link" type="submit">Logout</button></form><% } %></nav></header>
+<main><p class="notice" role="status">${message}</p>
+
+================================================================================
+FILE: webapp/WEB-INF/views/login.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">WELCOME BACK</p><h1>Customer login</h1><p>Three incorrect PIN attempts will lock your account.</p>
+<form method="post" action="${context}/login"><input type="hidden" name="csrf" value="${csrf}"><label>Account number<input name="accountNumber" required pattern="[0-9]{12}" maxlength="12" inputmode="numeric" autocomplete="username"></label><label>PIN<input type="password" name="pin" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" autocomplete="current-password"></label><button type="submit">Log in securely</button></form><a href="${context}/register">Open a new account</a></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/register.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">GET STARTED</p><h1>Open your account</h1><p>A unique 12-digit account number will be generated for you.</p>
+<form method="post" action="${context}/register"><input type="hidden" name="csrf" value="${csrf}"><label>Full name<input name="name" required minlength="2" maxlength="100" autocomplete="name"></label><label>Four-digit PIN<input type="password" name="pin" required pattern="[0-9]{4}" minlength="4" maxlength="4" inputmode="numeric" autocomplete="new-password"></label><button type="submit">Create account</button></form><a href="${context}/login">Already have an account? Log in</a></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/statement.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<p class="eyebrow">YOUR ACTIVITY</p><h1>Mini statement</h1><p>Your last ten transactions, newest first.</p><section class="card"><%@ include file="transactions.jspf" %></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/transactions.jspf
+================================================================================
+
+<%@ page import="java.util.List,java.util.Map" %>
+<div class="table-scroll"><table><thead><tr><th>Time (UTC)</th><th>Type</th><th>Amount</th><th>Counterparty</th><th>Reference</th><th>Balance after</th><th>Notes</th></tr></thead><tbody>
+<% List<Map<String,String>> rows = (List<Map<String,String>>) request.getAttribute("transactions");
+   if (rows == null || rows.isEmpty()) { %><tr><td colspan="7">No transactions yet.</td></tr><% }
+   else for (Map<String,String> row : rows) { %>
+<tr><td><%= row.get("time") %></td><td><%= row.get("type") %></td><td><%= row.get("amount") %></td><td><%= row.get("counterparty") %></td><td class="reference"><%= row.get("reference") %></td><td><%= row.get("balance") %></td><td><%= row.get("notes") %></td></tr>
+<% } %></tbody></table></div>
+
+================================================================================
+FILE: webapp/WEB-INF/views/transfer.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">MOVE MONEY</p><h1>Transfer funds</h1><form method="post" action="${context}/transfer"><input type="hidden" name="csrf" value="${csrf}"><label>Recipient account number<input name="recipient" required pattern="[0-9]{12}" maxlength="12" inputmode="numeric"></label><label>Amount<input type="number" name="amount" required min="0.01" max="1000000000" step="0.01" inputmode="decimal"></label><label>Notes (optional)<input name="notes" maxlength="255"></label><button type="submit">Confirm transfer</button></form></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/views/withdraw.jsp
+================================================================================
+
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">ACCESS YOUR FUNDS</p><h1>Withdraw</h1><p>Your available balance must cover the full withdrawal.</p><form method="post" action="${context}/withdraw"><input type="hidden" name="csrf" value="${csrf}"><label>Amount<input type="number" name="amount" required min="0.01" max="1000000000" step="0.01" inputmode="decimal"></label><label>Notes (optional)<input name="notes" maxlength="255"></label><button type="submit">Confirm withdrawal</button></form></section>
+<%@ include file="footer.jspf" %>
+
+================================================================================
+FILE: webapp/WEB-INF/web.xml
+================================================================================
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+    <display-name>Secure ATM</display-name>
+    <session-config>
+        <session-timeout>10</session-timeout>
+        <cookie-config><http-only>true</http-only></cookie-config>
+        <tracking-mode>COOKIE</tracking-mode>
+    </session-config>
+    <welcome-file-list><welcome-file>index.jsp</welcome-file></welcome-file-list>
+    <error-page><error-code>500</error-code><location>/WEB-INF/views/error.jsp</location></error-page>
+    <error-page><error-code>404</error-code><location>/WEB-INF/views/error.jsp</location></error-page>
+</web-app>
+
+================================================================================
+FILE: webapp/assets/style.css
+================================================================================
+
+:root{font-family:Arial,Helvetica,sans-serif;color:#17332e;background:#f3f6f3;font-size:16px}*{box-sizing:border-box}body{margin:0}header{background:white;border-bottom:1px solid #dbe5df;padding:24px 4%;display:flex;align-items:center;justify-content:space-between;gap:30px;flex-wrap:wrap}.brand{font-size:19px;font-weight:800;letter-spacing:.12em;text-decoration:none;color:#154e40}.brand span{display:block;font-size:12px;font-weight:400;letter-spacing:0;color:#61776d;margin-top:5px}nav,.actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}nav{font-size:14px}nav form{margin:0}a{color:#1b6250}main{max-width:1260px;margin:38px auto;padding:0 30px;min-height:65vh}h1{font-size:36px;letter-spacing:-.04em;margin:10px 0 24px}h2{font-size:21px}p{line-height:1.65;color:#547065}.eyebrow{font-size:12px;letter-spacing:.15em;font-weight:bold;color:#26735c}.card{padding:30px;background:#fff;border:1px solid #dce7df;border-radius:14px;margin:22px 0;box-shadow:0 5px 24px #163c2905}.narrow{max-width:530px;margin:35px auto}.account-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:25px}.account-grid .card{margin:0}.balance-card{padding:30px;background:#154e40;color:white;border-radius:14px}.balance-card p{color:#cae5d7}.balance-card strong{font-size:44px;font-weight:500}form{margin:15px 0 23px}label{display:block;font-size:14px;font-weight:600;margin-bottom:20px}input{display:block;width:100%;padding:13px 12px;margin-top:8px;border:1px solid #b6cabe;border-radius:7px;font:inherit;color:#193c30;background:#fbfdfb}input:focus{outline:2px solid #60a78a;outline-offset:2px}button,.button{display:inline-block;background:#176448;color:white;border:1px solid #176448;border-radius:7px;padding:13px 19px;font:inherit;font-size:14px;cursor:pointer;text-decoration:none;font-weight:600}.secondary{background:white;color:#176448}.link{background:none;color:#1b6250;border:0;padding:0;text-decoration:underline;font-weight:400}.notice{background:#e0f0e6;border-radius:7px;padding:14px 20px}.notice:empty{display:none}.table-scroll{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#64796d;background:#f4f8f5}th,td{padding:15px 12px;border-bottom:1px solid #e6ede8;vertical-align:top}td form{display:inline;margin:0 0 0 14px}.reference{font-family:monospace;font-size:11px;overflow-wrap:anywhere}footer{padding:30px;text-align:center;color:#6d8378;font-size:12px}.welcome{padding-top:12vh;max-width:900px}.welcome h1{font-size:72px;line-height:1.04;letter-spacing:-.06em}.welcome .actions{margin:34px 0}button:hover,.button:hover{filter:brightness(.94)}@media(max-width:760px){.account-grid{grid-template-columns:1fr}main{padding:0 16px}header{padding:22px}h1{font-size:29px}.welcome h1{font-size:48px}.card{padding:22px}nav{gap:13px}}
+
+================================================================================
+FILE: webapp/index.jsp
+================================================================================
+
+<%@ page contentType="text/html; charset=UTF-8" %>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Secure ATM</title><link rel="stylesheet" href="${pageContext.request.contextPath}/assets/style.css"></head>
+<body><main class="welcome"><p class="eyebrow">SECURE ATM · JAVA BANKING</p><h1>Your money.<br>Your next move.</h1><p>Manage your account, move funds, and keep track of every transaction.</p><div class="actions"><a class="button" href="${pageContext.request.contextPath}/login">Customer login</a><a class="button secondary" href="${pageContext.request.contextPath}/register">Open an account</a></div><a href="${pageContext.request.contextPath}/admin">Administrator access</a></main></body></html>

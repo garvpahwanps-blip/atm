@@ -1,0 +1,3 @@
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">MOVE MONEY</p><h1>Transfer funds</h1><form method="post" action="${context}/transfer"><input type="hidden" name="csrf" value="${csrf}"><label>Recipient account number<input name="recipient" required pattern="[0-9]{12}" maxlength="12" inputmode="numeric"></label><label>Amount<input type="number" name="amount" required min="0.01" max="1000000000" step="0.01" inputmode="decimal"></label><label>Notes (optional)<input name="notes" maxlength="255"></label><button type="submit">Confirm transfer</button></form></section>
+<%@ include file="footer.jspf" %>

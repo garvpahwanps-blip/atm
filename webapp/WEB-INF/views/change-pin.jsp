@@ -1,0 +1,3 @@
+<%@ include file="header.jspf" %>
+<section class="card narrow"><p class="eyebrow">ACCOUNT SECURITY</p><h1>Change PIN</h1><p>Choose a different four-digit PIN. You will log in again after changing it.</p><form method="post" action="${context}/change-pin"><input type="hidden" name="csrf" value="${csrf}"><label>Current PIN<input type="password" name="currentPin" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" autocomplete="current-password"></label><label>New PIN<input type="password" name="newPin" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" autocomplete="new-password"></label><button type="submit">Update PIN</button></form></section>
+<%@ include file="footer.jspf" %>

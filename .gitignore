@@ -1,0 +1,7 @@
+build/
+lib/*.jar
+resources/database.properties
+*.log
+.idea/
+*.iml
+.DS_Store

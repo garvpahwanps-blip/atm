@@ -1,0 +1,8 @@
+# Copy to database.properties outside the deployed WAR and restrict permissions.
+# Local-only MySQL. For remote MySQL, use sslMode=VERIFY_IDENTITY and a trusted server certificate.
+db.url=jdbc:mysql://127.0.0.1:3306/secure_atm?sslMode=DISABLED&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&connectTimeout=5000&socketTimeout=10000
+db.user=atm_app
+db.password=
+# Generate with com.atm.security.AdminPasswordTool. No default admin password.
+admin.passwordHash=
+admin.sessionMinutes=10
